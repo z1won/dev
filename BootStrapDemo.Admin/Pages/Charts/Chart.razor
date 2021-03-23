@@ -1,0 +1,168 @@
+﻿@page "/Charts/Chart"
+@*@using ChartJs.Blazor.Common
+    @using ChartJs.Blazor.Common.Axes
+    @using ChartJs.Blazor.Common.Axes.Ticks
+    @using ChartJs.Blazor.Common.Enums
+    @using ChartJs.Blazor.Common.Handlers
+    @using ChartJs.Blazor.Common.Time
+    @using ChartJs.Blazor.Util
+    @using ChartJs.Blazor.Interop*@
+
+
+@using ChartJs.Blazor.Common
+@using ChartJs.Blazor.Util
+@using ChartJs.Blazor.PieChart
+@using ChartJs.Blazor.LineChart 
+
+
+<!-- Page Heading -->
+<h1 class="h3 mb-2 text-gray-800">Charts</h1>
+<p class="mb-4">
+    Chart.js is a third party plugin that is used to generate the charts in this theme.
+    The charts below have been customized - for further customization options, please visit the 
+    <a target="_blank" href="https://www.chartjs.org/docs/latest/">
+        official Chart.js
+        documentation
+    </a>
+</p>
+
+<!-- Content Row -->
+<div class="row">
+
+    <div class="col-xl-5 col-lg-6">
+
+        <!-- Pie Chart -->
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Pie Chart</h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-pie">
+                    <ChartJs.Blazor.Chart Config="_configPie"></ChartJs.Blazor.Chart>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bar Chart -->
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Line Chart</h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-bar">
+                    <ChartJs.Blazor.Chart Config="_configLine"></ChartJs.Blazor.Chart>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Donut Chart -->
+    <div class="col-xl-6 col-lg-6">
+        <div class="card shadow mb-4">
+            <!-- Card Header - Dropdown -->
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Donut Chart</h6>
+            </div>
+            <!-- Card Body -->
+            <div class="card-body">
+                <div class="chart-pie pt-4">
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+@code{
+
+    private PieConfig _configPie;
+    private LineConfig _configLine;
+
+    protected override void OnInitialized()
+    {
+        _configPie = CreatePieChartConfig();
+        _configLine = CreateLineChartConfig();
+    }
+
+    private PieConfig CreatePieChartConfig()
+    {
+        var config = new PieConfig
+        {
+            Options = new PieOptions
+            {
+                Responsive = true,
+                Title = new OptionsTitle
+                {
+                    Display = true,
+                    Text = "ChartJs.Blazor Pie Chart"
+                }
+            }
+        };
+
+        foreach (string color in new[] { "Red", "Yellow", "Green", "Blue" })
+        {
+            config.Data.Labels.Add(color);
+        }
+
+        PieDataset<int> dataset = new PieDataset<int>(new[] { 6, 5, 3, 7 })
+        {
+            BackgroundColor = new[]
+        {
+            ColorUtil.ColorHexString(255, 99, 132), // Slice 1 aka "Red"
+            ColorUtil.ColorHexString(255, 205, 86), // Slice 2 aka "Yellow"
+            ColorUtil.ColorHexString(75, 192, 192), // Slice 3 aka "Green"
+            ColorUtil.ColorHexString(54, 162, 235), // Slice 4 aka "Blue"
+        }
+        };
+
+        config.Data.Datasets.Add(dataset);
+        return config;
+    }
+
+    private LineConfig CreateLineChartConfig()
+    {
+
+
+        // 기본 Config option 설정. 
+        var config = new LineConfig
+        {
+            Options = new LineOptions
+            {
+                Responsive = true,
+                Title = new OptionsTitle
+                {
+                    Display = true,
+                    Text = "ChartJs.Blazor Line Chart"
+                }
+            }
+        };
+
+
+        // x축 data label 생성
+        foreach (string date in new[] { "2/15", "2/16", "2/17", "2/18", "2/19" })
+        {
+            config.Data.Labels.Add(date);
+        }
+
+        // y값 생성
+        LineDataset<float> dataset1 = new LineDataset<float>(new float[] { 36, 35, 33, 37, 36.5f })
+        {
+            Label = "Jiwon",
+            PointBackgroundColor = config.Data.Labels.Select(i => ColorUtil.ColorHexString(55, 99, 132)).ToArray()
+        };
+
+        LineDataset<float> dataset2 = new LineDataset<float>(new float[] { 36.5f, 35.5f, 33.5f, 34, 36.5f })
+        {
+            Label = "Hanny",
+            PointBackgroundColor = config.Data.Labels.Select(i => ColorUtil.ColorHexString(155, 99, 32)).ToArray()
+        };
+
+        config.Data.Datasets.Add(dataset1);
+        config.Data.Datasets.Add(dataset2);
+
+        return config;
+    }
+
+}
