@@ -2,19 +2,27 @@
 
 <div class="app-shell">
     <aside class="sidebar">
-        <div class="brand">dev</div>
-        <nav>
-            <NavLink href="/" Match="NavLinkMatch.All">Dashboard</NavLink>
-        </nav>
+        <div class="brand"><span class="brand-mark">&gt;_</span><span>dev</span></div>
+        <div class="nav-group">
+            <div class="nav-label">Workspace</div>
+            <nav><NavLink href="/" Match="NavLinkMatch.All"><span>⌂</span> Dashboard</NavLink></nav>
+        </div>
+        <div class="nav-group">
+            <div class="nav-label">Explore</div>
+            <nav>
+                <a href="#github"><span>◈</span> GitHub</a>
+                <a href="#tools"><span>⌘</span> Developer Tools</a>
+                <a href="#visualization"><span>◌</span> Visualization</a>
+                <a href="#playground"><span>▷</span> Playground</a>
+            </nav>
+        </div>
+        <div class="sidebar-footer"><div class="stack-badge">.NET 10</div><div class="muted">Blazor WebAssembly</div></div>
     </aside>
-
     <main class="main-content">
         <header class="topbar">
-            <span>Developer Portal</span>
-            <span class="status">.NET 10 · Blazor WASM</span>
+            <div><span class="topbar-title">Developer Portal</span><span class="topbar-path">/ dashboard</span></div>
+            <div class="topbar-status"><span class="status-dot"></span> Ready</div>
         </header>
-        <section class="content">
-            @Body
-        </section>
+        <section class="content">@Body</section>
     </main>
 </div>
