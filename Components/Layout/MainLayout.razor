@@ -1,0 +1,20 @@
+@inherits LayoutComponentBase
+
+<div class="app-shell">
+    <aside class="sidebar">
+        <div class="brand">dev</div>
+        <nav>
+            <NavLink href="/" Match="NavLinkMatch.All">Dashboard</NavLink>
+        </nav>
+    </aside>
+
+    <main class="main-content">
+        <header class="topbar">
+            <span>Developer Portal</span>
+            <span class="status">.NET 10 · Blazor WASM</span>
+        </header>
+        <section class="content">
+            @Body
+        </section>
+    </main>
+</div>
