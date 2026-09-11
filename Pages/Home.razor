@@ -1,34 +1,74 @@
 @page "/"
 @layout MainLayout
+@inject GitHubApiClient GitHub
 
 <PageTitle>Dashboard · dev</PageTitle>
 
 <div class="dashboard-header">
     <div>
         <p class="eyebrow">Developer Portal</p>
-        <h1>Good evening.</h1>
-        <p class="lead">Your browser-native workspace for GitHub insights, developer utilities, and interactive experiments.</p>
+        <h1>GitHub, in one view.</h1>
+        <p class="lead">Live public GitHub insights powered directly from the browser with .NET 10 and Blazor WebAssembly.</p>
     </div>
-    <div class="header-chip"><span class="status-dot"></span> System ready</div>
+    <button class="refresh-button" type="button" @onclick="LoadGitHubAsync" disabled="@loading">@(loading ? "Loading..." : "Refresh data")</button>
 </div>
 
-<section class="metrics" aria-label="Portal overview">
-    <article class="metric-card"><div class="metric-icon">◈</div><div><div class="metric-value">GitHub</div><div class="metric-label">Insights</div></div></article>
-    <article class="metric-card"><div class="metric-icon">⌘</div><div><div class="metric-value">12+</div><div class="metric-label">Developer tools planned</div></div></article>
-    <article class="metric-card"><div class="metric-icon">◌</div><div><div class="metric-value">WASM</div><div class="metric-label">Browser runtime</div></div></article>
-    <article class="metric-card"><div class="metric-icon">⚡</div><div><div class="metric-value">.NET 10</div><div class="metric-label">Application stack</div></div></article>
+@if (error is not null)
+{
+    <div class="error-banner" role="alert">GitHub data could not be loaded: @error</div>
+}
+
+<section class="metrics" aria-label="GitHub overview">
+    <article class="metric-card"><div class="metric-icon">◈</div><div><div class="metric-value">@profile?.PublicRepos.ToString() ?? "—"</div><div class="metric-label">Public repositories</div></div></article>
+    <article class="metric-card"><div class="metric-icon">★</div><div><div class="metric-value">@repositories.Sum(x => x.StargazersCount)</div><div class="metric-label">Stars in recent repos</div></div></article>
+    <article class="metric-card"><div class="metric-icon">◌</div><div><div class="metric-value">@profile?.Followers.ToString() ?? "—"</div><div class="metric-label">Followers</div></div></article>
+    <article class="metric-card"><div class="metric-icon">⚡</div><div><div class="metric-value">.NET 10</div><div class="metric-label">Blazor WebAssembly</div></div></article>
 </section>
 
 <section class="section-block" id="github">
-    <div class="section-heading"><div><p class="section-kicker">01 · Explore</p><h2>GitHub</h2></div><span class="coming-soon">Coming next</span></div>
-    <div class="feature-grid">
-        <article class="feature-card"><div class="feature-symbol">◫</div><h3>Repository overview</h3><p>Repositories, languages, stars, forks, and recent activity in one view.</p><button type="button" disabled>Open GitHub</button></article>
-        <article class="feature-card"><div class="feature-symbol">↗</div><h3>Activity stream</h3><p>Commits, pull requests, issues, and contribution trends with lightweight charts.</p><button type="button" disabled>View activity</button></article>
+    <div class="section-heading">
+        <div><p class="section-kicker">01 · Live data</p><h2>GitHub</h2></div>
+        <span class="coming-soon">@username</span>
+    </div>
+
+    @if (profile is not null)
+    {
+        <div class="profile-card">
+            <img src="@profile.AvatarUrl" alt="@profile.Login avatar" />
+            <div><h3>@(profile.Name ?? profile.Login)</h3><p>@(profile.Bio ?? "GitHub profile")</p></div>
+            <a href="@profile.HtmlUrl" target="_blank" rel="noopener">Open profile ↗</a>
+        </div>
+    }
+
+    <div class="repo-grid">
+        @if (loading && repositories.Count == 0)
+        {
+            <article class="empty-card">Loading repositories…</article>
+        }
+        else if (repositories.Count == 0)
+        {
+            <article class="empty-card">No public repositories found.</article>
+        }
+        else
+        {
+            @foreach (var repo in repositories)
+            {
+                <article class="repo-card">
+                    <div class="repo-heading"><h3>@repo.Name</h3><span>@(repo.Language ?? "Code")</span></div>
+                    <p>@(repo.Description ?? "No description")</p>
+                    <div class="repo-meta"><span>★ @repo.StargazersCount</span><span>⑂ @repo.ForksCount</span><span>Updated @FormatDate(repo.UpdatedAt)</span></div>
+                    @if (repo.HtmlUrl is not null)
+                    {
+                        <a href="@repo.HtmlUrl" target="_blank" rel="noopener">Repository ↗</a>
+                    }
+                </article>
+            }
+        }
     </div>
 </section>
 
 <section class="section-block" id="tools">
-    <div class="section-heading"><div><p class="section-kicker">02 · Utilities</p><h2>Developer Tools</h2></div><span class="tool-count">6 modules</span></div>
+    <div class="section-heading"><div><p class="section-kicker">02 · Utilities</p><h2>Developer Tools</h2></div><span class="tool-count">Next</span></div>
     <div class="tool-grid">
         <div class="tool-card"><span>JSON</span><small>Format & validate</small></div>
         <div class="tool-card"><span>JWT</span><small>Decode tokens</small></div>
@@ -41,10 +81,42 @@
 
 <section class="section-block split-section" id="visualization">
     <div><p class="section-kicker">03 · Visualize</p><h2>Interactive visualization</h2><p>Charts, Git graphs, algorithm animations, and WebGL experiments will live here.</p></div>
-    <div class="terminal-card"><div class="terminal-top"><span></span><span></span><span></span></div><code>dev.visualization<span> → </span>ready</code><div class="terminal-line">await workspace.StartAsync();</div></div>
+    <div class="terminal-card"><div class="terminal-top"><span></span><span></span><span></span></div><code>github.api<span> → </span>connected</code><div class="terminal-line">GET /users/@githubUser/repos</div></div>
 </section>
 
 <section class="section-block split-section" id="playground">
     <div><p class="section-kicker">04 · Experiment</p><h2>Playground</h2><p>A safe place for C# snippets, algorithms, WASM demos, and small browser experiments.</p></div>
-    <div class="roadmap"><div><strong>01</strong><span>Foundation</span><em>done</em></div><div><strong>02</strong><span>Portal UI</span><em>current</em></div><div><strong>03</strong><span>GitHub API</span><em>next</em></div></div>
+    <div class="roadmap"><div><strong>01</strong><span>Foundation</span><em>done</em></div><div><strong>02</strong><span>Portal UI</span><em>done</em></div><div><strong>03</strong><span>GitHub API</span><em>current</em></div><div><strong>04</strong><span>Developer tools</span><em>next</em></div></div>
 </section>
+
+@code {
+    private const string githubUser = "z1won";
+    private GitHubProfile? profile;
+    private IReadOnlyList<GitHubRepository> repositories = [];
+    private bool loading;
+    private string? error;
+
+    protected override async Task OnInitializedAsync() => await LoadGitHubAsync();
+
+    private async Task LoadGitHubAsync()
+    {
+        loading = true;
+        error = null;
+        try
+        {
+            profile = await GitHub.GetProfileAsync(githubUser);
+            repositories = (await GitHub.GetRepositoriesAsync(githubUser, 12)).Where(x => !x.Fork).ToList();
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private static string FormatDate(DateTimeOffset? date)
+        => date is null ? "—" : date.Value.ToLocalTime().ToString("yyyy-MM-dd");
+}
