@@ -20,61 +20,12 @@ public sealed class GitHubApiClient(HttpClient httpClient)
         => await httpClient.GetFromJsonAsync<List<GitHubIssue>>($"https://api.github.com/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repository)}/issues?state=all&sort=updated&direction=desc&per_page={Math.Clamp(perPage, 1, 20)}", cancellationToken) ?? [];
 }
 
-public sealed record GitHubProfile(
-    string Login,
-    string? Name,
-    string? AvatarUrl,
-    string? HtmlUrl,
-    string? Bio,
-    int PublicRepos,
-    int Followers,
-    int Following);
-
-public sealed record GitHubRepository(
-    string Name,
-    string? Description,
-    string? HtmlUrl,
-    string? Language,
-    int StargazersCount,
-    int ForksCount,
-    bool Fork,
-    DateTimeOffset? UpdatedAt);
-
-public sealed record GitHubCommit(
-    string Sha,
-    GitHubCommitDetails? Commit,
-    GitHubUser? Author,
-    string? HtmlUrl);
-
-public sealed record GitHubCommitDetails(
-    GitHubCommitAuthor? Author,
-    string? Message);
-
-public sealed record GitHubCommitAuthor(
-    string? Name,
-    DateTimeOffset? Date);
-
-public sealed record GitHubUser(
-    string? Login,
-    string? AvatarUrl,
-    string? HtmlUrl);
-
-public sealed record GitHubPullRequest(
-    int Number,
-    string? Title,
-    string? HtmlUrl,
-    string? State,
-    bool Draft,
-    DateTimeOffset? UpdatedAt,
-    GitHubUser? User);
-
-public sealed record GitHubIssue(
-    int Number,
-    string? Title,
-    string? HtmlUrl,
-    string? State,
-    DateTimeOffset? UpdatedAt,
-    GitHubUser? User,
-    GitHubPullRequestLink? PullRequest);
-
+public sealed record GitHubProfile(string Login, string? Name, string? AvatarUrl, string? HtmlUrl, string? Bio, int PublicRepos, int Followers, int Following);
+public sealed record GitHubRepository(string Name, string? Description, string? HtmlUrl, string? Language, int StargazersCount, int ForksCount, bool Fork, DateTimeOffset? UpdatedAt);
+public sealed record GitHubCommit(string Sha, GitHubCommitDetails? Commit, GitHubUser? Author, string? HtmlUrl);
+public sealed record GitHubCommitDetails(GitHubCommitAuthor? Author, string? Message);
+public sealed record GitHubCommitAuthor(string? Name, DateTimeOffset? Date);
+public sealed record GitHubUser(string? Login, string? AvatarUrl, string? HtmlUrl);
+public sealed record GitHubPullRequest(int Number, string? Title, string? HtmlUrl, string? State, bool Draft, DateTimeOffset? UpdatedAt, GitHubUser? User);
+public sealed record GitHubIssue(int Number, string? Title, string? HtmlUrl, string? State, DateTimeOffset? UpdatedAt, GitHubUser? User, GitHubPullRequestLink? PullRequest);
 public sealed record GitHubPullRequestLink(string? Url);
