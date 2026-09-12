@@ -22,7 +22,7 @@
     <article class="metric-card"><div class="metric-icon">◈</div><div><div class="metric-value">@(profile?.PublicRepos.ToString() ?? "—")</div><div class="metric-label">Public repositories</div></div></article>
     <article class="metric-card"><div class="metric-icon">★</div><div><div class="metric-value">@repositories.Sum(x => x.StargazersCount)</div><div class="metric-label">Stars in recent repos</div></div></article>
     <article class="metric-card"><div class="metric-icon">◌</div><div><div class="metric-value">@(profile?.Followers.ToString() ?? "—")</div><div class="metric-label">Followers</div></div></article>
-    <article class="metric-card"><div class="metric-icon">⚡</div><div><div class="metric-value">@commits.Count</div><div class="metric-label">Recent commits loaded</div></div></article>
+    <article class="metric-card"><div class="metric-icon">⚡</div><div><div class="metric-value">@timeline.Count</div><div class="metric-label">Recent activity</div></div></article>
 </section>
 
 <section class="section-block" id="github">
@@ -68,71 +68,42 @@
 </section>
 
 <section class="section-block" id="activity">
-    <div class="section-heading"><div><p class="section-kicker">02 · Recent work</p><h2>Activity</h2></div><span class="tool-count">Live GitHub</span></div>
-    <div class="activity-grid">
-        <div class="activity-card">
-            <div class="activity-title"><h3>Commits</h3><span>@commits.Count</span></div>
-            @if (loading && commits.Count == 0)
+    <div class="section-heading">
+        <div><p class="section-kicker">02 · Recent work</p><h2>Activity timeline</h2></div>
+        <span class="tool-count">@timeline.Count events</span>
+    </div>
+
+    <div class="activity-summary">
+        <span><b>@commits.Count</b> commits</span>
+        <span><b>@pullRequests.Count</b> pull requests</span>
+        <span><b>@issues.Count</b> issues</span>
+        <span class="activity-scope">Latest activity across @activityRepoCount repositories</span>
+    </div>
+
+    <div class="timeline-card">
+        @if (loading && timeline.Count == 0)
+        {
+            <p class="activity-empty">Loading activity…</p>
+        }
+        else if (timeline.Count == 0)
+        {
+            <p class="activity-empty">No recent activity found.</p>
+        }
+        else
+        {
+            @foreach (var item in timeline)
             {
-                <p class="activity-empty">Loading commits…</p>
+                <a class="timeline-item" href="@item.Url" target="_blank" rel="noopener">
+                    <span class="timeline-marker @item.TypeClass">@item.Icon</span>
+                    <span class="timeline-content">
+                        <span class="timeline-topline"><b class="activity-type">@item.Type</b><span class="activity-repo">@item.Repository</span><time>@FormatRelative(item.Date)</time></span>
+                        <strong>@item.Title</strong>
+                        <small>@item.Detail</small>
+                    </span>
+                    <span class="timeline-arrow">↗</span>
+                </a>
             }
-            else if (commits.Count == 0)
-            {
-                <p class="activity-empty">No recent commits found.</p>
-            }
-            else
-            {
-                @foreach (var item in commits)
-                {
-                    <a class="activity-item" href="@item.HtmlUrl" target="_blank" rel="noopener">
-                        <span class="activity-dot">●</span>
-                        <span class="activity-body"><strong>@Shorten(item.Commit?.Message)</strong><small>@item.Author?.Login · @FormatDate(item.Commit?.Author?.Date)</small></span>
-                    </a>
-                }
-            }
-        </div>
-        <div class="activity-card">
-            <div class="activity-title"><h3>Pull requests</h3><span>@pullRequests.Count</span></div>
-            @if (loading && pullRequests.Count == 0)
-            {
-                <p class="activity-empty">Loading pull requests…</p>
-            }
-            else if (pullRequests.Count == 0)
-            {
-                <p class="activity-empty">No recent pull requests found.</p>
-            }
-            else
-            {
-                @foreach (var item in pullRequests)
-                {
-                    <a class="activity-item" href="@item.HtmlUrl" target="_blank" rel="noopener">
-                        <span class="activity-dot">↗</span>
-                        <span class="activity-body"><strong>#{item.Number} · @item.Title</strong><small>@item.State@(item.Draft ? " · draft" : "") · @FormatDate(item.UpdatedAt)</small></span>
-                    </a>
-                }
-            }
-        </div>
-        <div class="activity-card">
-            <div class="activity-title"><h3>Issues</h3><span>@issues.Count</span></div>
-            @if (loading && issues.Count == 0)
-            {
-                <p class="activity-empty">Loading issues…</p>
-            }
-            else if (issues.Count == 0)
-            {
-                <p class="activity-empty">No recent issues found.</p>
-            }
-            else
-            {
-                @foreach (var item in issues)
-                {
-                    <a class="activity-item" href="@item.HtmlUrl" target="_blank" rel="noopener">
-                        <span class="activity-dot">#</span>
-                        <span class="activity-body"><strong>#{item.Number} · @item.Title</strong><small>@item.State · @FormatDate(item.UpdatedAt)</small></span>
-                    </a>
-                }
-            }
-        </div>
+        }
     </div>
 </section>
 
@@ -155,7 +126,7 @@
 
 <section class="section-block split-section" id="playground">
     <div><p class="section-kicker">05 · Experiment</p><h2>Playground</h2><p>A safe place for C# snippets, algorithms, WASM demos, and small browser experiments.</p></div>
-    <div class="roadmap"><div><strong>01</strong><span>Foundation</span><em>done</em></div><div><strong>02</strong><span>Portal UI</span><em>done</em></div><div><strong>03</strong><span>GitHub API</span><em>done</em></div><div><strong>04</strong><span>Activity feed</span><em>current</em></div><div><strong>05</strong><span>Developer tools</span><em>next</em></div></div>
+    <div class="roadmap"><div><strong>01</strong><span>Foundation</span><em>done</em></div><div><strong>02</strong><span>Portal UI</span><em>done</em></div><div><strong>03</strong><span>GitHub API</span><em>done</em></div><div><strong>04</strong><span>Activity timeline</span><em>current</em></div><div><strong>05</strong><span>Developer tools</span><em>next</em></div></div>
 </section>
 
 @code {
@@ -165,8 +136,10 @@
     private IReadOnlyList<GitHubCommit> commits = [];
     private IReadOnlyList<GitHubPullRequest> pullRequests = [];
     private IReadOnlyList<GitHubIssue> issues = [];
+    private List<ActivityEvent> timeline = [];
     private bool loading;
     private string? error;
+    private int activityRepoCount;
 
     protected override async Task OnInitializedAsync() => await LoadGitHubAsync();
 
@@ -180,6 +153,7 @@
             repositories = (await GitHub.GetRepositoriesAsync(githubUser, 12)).Where(x => !x.Fork).ToList();
 
             var activityRepos = repositories.Take(4).ToList();
+            activityRepoCount = activityRepos.Count;
             var commitTasks = activityRepos.Select(repo => GitHub.GetCommitsAsync(githubUser, repo.Name, 3)).ToArray();
             var pullTasks = activityRepos.Select(repo => GitHub.GetPullRequestsAsync(githubUser, repo.Name, 3)).ToArray();
             var issueTasks = activityRepos.Select(repo => GitHub.GetIssuesAsync(githubUser, repo.Name, 3)).ToArray();
@@ -188,9 +162,28 @@
             var pullResults = await Task.WhenAll(pullTasks);
             var issueResults = await Task.WhenAll(issueTasks);
 
+            var commitItems = commitResults.SelectMany((items, repoIndex) => items.Select(item => new ActivityEvent(
+                "Commit", "commit", "●", activityRepos[repoIndex].Name, Shorten(item.Commit?.Message),
+                $"{item.Author?.Login ?? "GitHub user"} · {FormatDate(item.Commit?.Author?.Date)}",
+                item.Commit?.Author?.Date, item.HtmlUrl))).ToList();
+
+            var pullItems = pullResults.SelectMany((items, repoIndex) => items.Select(item => new ActivityEvent(
+                "Pull request", "pull", "↗", activityRepos[repoIndex].Name, $"#{item.Number} · {item.Title}",
+                $"{item.State}{(item.Draft ? " · draft" : "")} · {FormatDate(item.UpdatedAt)}",
+                item.UpdatedAt, item.HtmlUrl))).ToList();
+
+            var issueItems = issueResults.SelectMany((items, repoIndex) => items.Where(item => item.PullRequest is null).Select(item => new ActivityEvent(
+                "Issue", "issue", "#", activityRepos[repoIndex].Name, $"#{item.Number} · {item.Title}",
+                $"{item.State} · {FormatDate(item.UpdatedAt)}",
+                item.UpdatedAt, item.HtmlUrl))).ToList();
+
             commits = commitResults.SelectMany(x => x).OrderByDescending(x => x.Commit?.Author?.Date).Take(8).ToList();
             pullRequests = pullResults.SelectMany(x => x).OrderByDescending(x => x.UpdatedAt).Take(6).ToList();
             issues = issueResults.SelectMany(x => x).Where(x => x.PullRequest is null).OrderByDescending(x => x.UpdatedAt).Take(6).ToList();
+            timeline = commitItems.Concat(pullItems).Concat(issueItems)
+                .OrderByDescending(x => x.Date ?? DateTimeOffset.MinValue)
+                .Take(18)
+                .ToList();
         }
         catch (Exception ex)
         {
@@ -205,9 +198,22 @@
     private static string FormatDate(DateTimeOffset? date)
         => date is null ? "—" : date.Value.ToLocalTime().ToString("yyyy-MM-dd");
 
+    private static string FormatRelative(DateTimeOffset? date)
+    {
+        if (date is null) return "—";
+        var age = DateTimeOffset.UtcNow - date.Value.ToUniversalTime();
+        if (age.TotalMinutes < 1) return "just now";
+        if (age.TotalHours < 1) return $"{Math.Max(1, (int)age.TotalMinutes)}m ago";
+        if (age.TotalDays < 1) return $"{Math.Max(1, (int)age.TotalHours)}h ago";
+        if (age.TotalDays < 7) return $"{Math.Max(1, (int)age.TotalDays)}d ago";
+        return date.Value.ToLocalTime().ToString("MMM d");
+    }
+
     private static string Shorten(string? message)
     {
         var firstLine = message?.Split('\n', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "No commit message";
         return firstLine.Length > 78 ? firstLine[..75] + "..." : firstLine;
     }
+
+    private sealed record ActivityEvent(string Type, string TypeClass, string Icon, string Repository, string Title, string Detail, DateTimeOffset? Date, string? Url);
 }
