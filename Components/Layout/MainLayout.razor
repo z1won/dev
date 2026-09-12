@@ -8,13 +8,13 @@
             <nav>
                 <NavLink href="/" Match="NavLinkMatch.All"><span>⌂</span> Dashboard</NavLink>
                 <NavLink href="/tools"><span>⌘</span> Developer Tools</NavLink>
+                <NavLink href="/visualization"><span>◌</span> Visualization</NavLink>
             </nav>
         </div>
         <div class="nav-group">
             <div class="nav-label">Explore</div>
             <nav>
                 <a href="/#github"><span>◈</span> GitHub</a>
-                <a href="/#visualization"><span>◌</span> Visualization</a>
                 <a href="/#playground"><span>▷</span> Playground</a>
             </nav>
         </div>
@@ -22,7 +22,7 @@
     </aside>
     <main class="main-content">
         <header class="topbar">
-            <div><span class="topbar-title">Developer Portal</span><span class="topbar-path">/ @((NavManager.Uri.EndsWith("/tools") ? "tools" : "dashboard"))</span></div>
+            <div><span class="topbar-title">Developer Portal</span><span class="topbar-path">/ @PageName</span></div>
             <div class="topbar-status"><span class="status-dot"></span> Ready</div>
         </header>
         <section class="content">@Body</section>
@@ -31,4 +31,10 @@
 
 @code {
     [Inject] private NavigationManager NavManager { get; set; } = default!;
+    private string PageName => NavManager.Uri.TrimEnd('/').Split('/').LastOrDefault() switch
+    {
+        "tools" => "tools",
+        "visualization" => "visualization",
+        _ => "dashboard"
+    };
 }
