@@ -1,0 +1,108 @@
+@page "/tools"
+@layout MainLayout
+@using System.Text
+@using System.Text.Json
+@using System.Text.RegularExpressions
+
+<PageTitle>Developer Tools · dev</PageTitle>
+
+<div class="dashboard-header">
+    <div>
+        <p class="eyebrow">Developer Tools</p>
+        <h1>Small tools, zero backend.</h1>
+        <p class="lead">Useful browser-native utilities implemented in Blazor WebAssembly.</p>
+    </div>
+</div>
+
+<div class="tool-tabs">
+    @foreach (var item in toolNames)
+    {
+        <button class="tool-tab @(activeTool == item ? "active" : "")" @onclick="() => activeTool = item">@item</button>
+    }
+</div>
+
+<section class="tool-workspace">
+@if (activeTool == "JSON")
+{
+    <div class="tool-panel"><div class="tool-panel-heading"><h2>JSON Formatter</h2><button class="action-button" @onclick="FormatJson">Format</button></div><textarea class="tool-editor" @bind="jsonInput" spellcheck="false" placeholder="Paste JSON here..."></textarea><pre class="tool-output">@jsonOutput</pre></div>
+}
+else if (activeTool == "JWT")
+{
+    <div class="tool-panel"><div class="tool-panel-heading"><h2>JWT Decoder</h2><span class="tool-note">Signature is not verified</span></div><textarea class="tool-editor" @bind="jwtInput" spellcheck="false" placeholder="eyJhbGciOi..."></textarea><pre class="tool-output">@jwtOutput</pre><button class="action-button" @onclick="DecodeJwt">Decode</button></div>
+}
+else if (activeTool == "REGEX")
+{
+    <div class="tool-panel"><h2>Regex Tester</h2><input class="tool-input" @bind="regexPattern" placeholder="Pattern, e.g. ^[A-Z]+$" /><textarea class="tool-editor compact" @bind="regexText" spellcheck="false" placeholder="Test text..."></textarea><button class="action-button" @onclick="TestRegex">Test</button><pre class="tool-output">@regexOutput</pre></div>
+}
+else if (activeTool == "DIFF")
+{
+    <div class="tool-panel"><div class="diff-columns"><div><h3>Original</h3><textarea class="tool-editor" @bind="diffLeft" spellcheck="false"></textarea></div><div><h3>Modified</h3><textarea class="tool-editor" @bind="diffRight" spellcheck="false"></textarea></div></div><button class="action-button" @onclick="CompareDiff">Compare</button><pre class="tool-output">@diffOutput</pre></div>
+}
+else if (activeTool == "BASE64")
+{
+    <div class="tool-panel"><div class="tool-panel-heading"><h2>Base64</h2><div><button class="action-button secondary" @onclick="EncodeBase64">Encode</button><button class="action-button" @onclick="DecodeBase64">Decode</button></div></div><textarea class="tool-editor" @bind="base64Input" spellcheck="false"></textarea><pre class="tool-output">@base64Output</pre></div>
+}
+else
+{
+    <div class="tool-panel uuid-panel"><h2>UUID Generator</h2><div class="uuid-value">@uuidValue</div><button class="action-button" @onclick="GenerateUuid">Generate UUID</button></div>
+}
+</section>
+
+@code {
+    private readonly string[] toolNames = ["JSON", "JWT", "REGEX", "DIFF", "BASE64", "UUID"];
+    private string activeTool = "JSON";
+    private string jsonInput = "{\n  \"name\": \"dev\",\n  \"version\": 1\n}";
+    private string jsonOutput = "";
+    private string jwtInput = "";
+    private string jwtOutput = "";
+    private string regexPattern = "^[A-Z]+$";
+    private string regexText = "HELLO\nBlazor\nWASM";
+    private string regexOutput = "";
+    private string diffLeft = "hello\nworld";
+    private string diffRight = "hello\nblazor";
+    private string diffOutput = "";
+    private string base64Input = "Hello, Blazor!";
+    private string base64Output = "";
+    private string uuidValue = Guid.NewGuid().ToString();
+
+    private void FormatJson()
+    {
+        try { jsonOutput = JsonSerializer.Serialize(JsonDocument.Parse(jsonInput), new JsonSerializerOptions { WriteIndented = true }); }
+        catch (Exception ex) { jsonOutput = $"Invalid JSON: {ex.Message}"; }
+    }
+
+    private void DecodeJwt()
+    {
+        try
+        {
+            var parts = jwtInput.Split('.');
+            if (parts.Length < 2) throw new FormatException("A JWT needs at least header and payload segments.");
+            jwtOutput = $"HEADER\n{DecodeSegment(parts[0])}\n\nPAYLOAD\n{DecodeSegment(parts[1])}";
+        }
+        catch (Exception ex) { jwtOutput = $"Invalid JWT: {ex.Message}"; }
+    }
+
+    private static string DecodeSegment(string value)
+    {
+        var padded = value.Replace('-', '+').Replace('_', '/') + new string('=', (4 - value.Length % 4) % 4);
+        var json = Encoding.UTF8.GetString(Convert.FromBase64String(padded));
+        try { return JsonSerializer.Serialize(JsonDocument.Parse(json), new JsonSerializerOptions { WriteIndented = true }); }
+        catch { return json; }
+    }
+
+    private void TestRegex()
+    {
+        try { regexOutput = string.Join(Environment.NewLine, Regex.Matches(regexText, regexPattern).Select(m => $"Match: {m.Value} @ {m.Index}")); if (string.IsNullOrEmpty(regexOutput)) regexOutput = "No matches."; }
+        catch (Exception ex) { regexOutput = $"Invalid regex: {ex.Message}"; }
+    }
+
+    private void CompareDiff()
+    {
+        var left = diffLeft.Split('\n'); var right = diffRight.Split('\n'); var max = Math.Max(left.Length, right.Length);
+        diffOutput = string.Join(Environment.NewLine, Enumerable.Range(0, max).Select(i => i >= left.Length ? $"+ {right[i]}" : i >= right.Length ? $"- {left[i]}" : left[i] == right[i] ? $"  {left[i]}" : $"- {left[i]}\n+ {right[i]}"));
+    }
+
+    private void EncodeBase64() => base64Output = Convert.ToBase64String(Encoding.UTF8.GetBytes(base64Input));
+    private void DecodeBase64() { try { base64Output = Encoding.UTF8.GetString(Convert.FromBase64String(base64Input)); } catch (Exception ex) { base64Output = $"Invalid Base64: {ex.Message}"; } }
+    private void GenerateUuid() => uuidValue = Guid.NewGuid().ToString();
+}
