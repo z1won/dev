@@ -9,7 +9,11 @@
     <button class="refresh-button" type="button" @onclick="LoadAsync" disabled="@loading">@(loading ? "Loading..." : "Refresh")</button>
 </div>
 
-@if (error is not null)<div class="error-banner" role="alert">GitHub data could not be loaded: @error</div>
+@if (error is not null)
+{
+    <div class="error-banner" role="alert">GitHub data could not be loaded: @error</div>
+}
+
 @if (loading && repositories.Count == 0)
 {
     <div class="viz-loading">Loading GitHub statistics…</div>
@@ -18,22 +22,74 @@ else
 {
     <section class="viz-grid">
         <article class="viz-card viz-wide">
-            <div class="viz-heading"><div><p class="section-kicker">Language distribution</p><h2>What @githubUser builds with</h2></div><span>@languageStats.Count languages</span></div>
-            @if (languageStats.Count == 0) { <p class="viz-empty">No language metadata is available.</p> }
+            <div class="viz-heading">
+                <div><p class="section-kicker">Language distribution</p><h2>What @githubUser builds with</h2></div>
+                <span>@languageStats.Count languages</span>
+            </div>
+            @if (languageStats.Count == 0)
+            {
+                <p class="viz-empty">No language metadata is available.</p>
+            }
             else
             {
-                <div class="donut-layout"><div class="donut" style="--p1:@LanguagePercent(0); --p2:@LanguagePercent(1); --p3:@LanguagePercent(2); --p4:@LanguagePercent(3);" aria-label="Language distribution chart"><div class="donut-hole"><strong>@repositories.Count</strong><small>repos</small></div></div><div class="legend">@for (var i = 0; i < Math.Min(languageStats.Count, 6); i++){var item = languageStats[i];<div class="legend-row"><span class="legend-dot"></span><span>@item.Language</span><strong>@item.Count</strong><small>@item.Percent.ToString("0.#")%</small></div>}</div></div>
+                <div class="donut-layout">
+                    <div class="donut" style="--p1:@LanguagePercent(0); --p2:@LanguagePercent(1); --p3:@LanguagePercent(2); --p4:@LanguagePercent(3);" aria-label="Language distribution chart">
+                        <div class="donut-hole"><strong>@repositories.Count</strong><small>repos</small></div>
+                    </div>
+                    <div class="legend">
+                        @foreach (var item in languageStats.Take(6))
+                        {
+                            <div class="legend-row"><span class="legend-dot"></span><span>@item.Language</span><strong>@item.Count</strong><small>@item.Percent.ToString("0.#")%</small></div>
+                        }
+                    </div>
+                </div>
             }
         </article>
 
-        <article class="viz-card"><div class="viz-heading"><div><p class="section-kicker">Repository reach</p><h2>Stars & forks</h2></div></div><div class="bar-chart">@foreach (var repo in repositories.Take(8)){var max = Math.Max(1, repositories.Take(8).Max(x => Math.Max(x.StargazersCount, x.ForksCount)));<div class="bar-row"><span title="@repo.Name">@ShortName(repo.Name)</span><div class="bars"><i style="width:@BarWidth(repo.StargazersCount, max)%"></i><b style="width:@BarWidth(repo.ForksCount, max)%"></b></div></div>}</div><div class="chart-key"><span>★ Stars</span><span>⑂ Forks</span></div></article>
+        <article class="viz-card">
+            <div class="viz-heading"><div><p class="section-kicker">Repository reach</p><h2>Stars & forks</h2></div></div>
+            <div class="bar-chart">
+                @{ var topReach = repositories.Take(8).ToList(); var maxReach = Math.Max(1, topReach.Select(x => Math.Max(x.StargazersCount, x.ForksCount)).DefaultIfEmpty(1).Max()); }
+                @foreach (var repo in topReach)
+                {
+                    <div class="bar-row"><span title="@repo.Name">@ShortName(repo.Name)</span><div class="bars"><i style="width:@BarWidth(repo.StargazersCount, maxReach)%"></i><b style="width:@BarWidth(repo.ForksCount, maxReach)%"></b></div></div>
+                }
+            </div>
+            <div class="chart-key"><span>★ Stars</span><span>⑂ Forks</span></div>
+        </article>
 
-        <article class="viz-card"><div class="viz-heading"><div><p class="section-kicker">Repository activity</p><h2>Recent updates</h2></div></div><div class="activity-bars">@foreach (var repo in repositories.OrderByDescending(x => x.UpdatedAt).Take(8)){<div class="activity-bar-row"><span>@ShortName(repo.Name)</span><div><i style="height:@ActivityHeight(repo)%"></i></div><small>@FormatDate(repo.UpdatedAt)</small></div>}</div></article>
+        <article class="viz-card">
+            <div class="viz-heading"><div><p class="section-kicker">Repository activity</p><h2>Recent updates</h2></div></div>
+            <div class="activity-bars">
+                @foreach (var repo in repositories.OrderByDescending(x => x.UpdatedAt).Take(8))
+                {
+                    <div class="activity-bar-row"><span>@ShortName(repo.Name)</span><div><i style="height:@ActivityHeight(repo)%"></i></div><small>@FormatDate(repo.UpdatedAt)</small></div>
+                }
+            </div>
+        </article>
 
-        <article class="viz-card viz-wide"><div class="viz-heading"><div><p class="section-kicker">Commit pulse</p><h2>Recent commits across active repositories</h2></div><span>@commitCount commits sampled</span></div><div class="commit-chart">@foreach (var bucket in commitBuckets){<div class="commit-column"><span>@bucket.Count</span><div><i style="height:@CommitHeight(bucket.Count)%"></i></div><small>@bucket.Label</small></div>}</div><p class="viz-note">Sampled from the latest 20 commits of the 8 most recently updated non-fork repositories.</p></article>
+        <article class="viz-card viz-wide">
+            <div class="viz-heading"><div><p class="section-kicker">Commit pulse</p><h2>Recent commits across active repositories</h2></div><span>@commitCount commits sampled</span></div>
+            <div class="commit-chart">
+                @foreach (var bucket in commitBuckets)
+                {
+                    <div class="commit-column"><span>@bucket.Count</span><div><i style="height:@CommitHeight(bucket.Count)%"></i></div><small>@bucket.Label</small></div>
+                }
+            </div>
+            <p class="viz-note">Sampled from the latest 20 commits of the 8 most recently updated non-fork repositories.</p>
+        </article>
     </section>
 
-    <section class="section-block"><div class="section-heading"><div><p class="section-kicker">Repository ranking</p><h2>Top repositories</h2></div><span class="tool-count">@repositories.Count public repos loaded</span></div><div class="repo-table"><div class="repo-table-head"><span>Repository</span><span>Language</span><span>Stars</span><span>Forks</span></div>@foreach (var repo in repositories.OrderByDescending(x => x.StargazersCount).ThenByDescending(x => x.ForksCount).Take(10)){<a class="repo-table-row" href="@repo.HtmlUrl" target="_blank" rel="noopener"><strong>@repo.Name</strong><span>@(repo.Language ?? "—")</span><span>★ @repo.StargazersCount</span><span>⑂ @repo.ForksCount</span></a>}</div></section>
+    <section class="section-block">
+        <div class="section-heading"><div><p class="section-kicker">Repository ranking</p><h2>Top repositories</h2></div><span class="tool-count">@repositories.Count public repos loaded</span></div>
+        <div class="repo-table">
+            <div class="repo-table-head"><span>Repository</span><span>Language</span><span>Stars</span><span>Forks</span></div>
+            @foreach (var repo in repositories.OrderByDescending(x => x.StargazersCount).ThenByDescending(x => x.ForksCount).Take(10))
+            {
+                <a class="repo-table-row" href="@repo.HtmlUrl" target="_blank" rel="noopener"><strong>@repo.Name</strong><span>@(repo.Language ?? "—")</span><span>★ @repo.StargazersCount</span><span>⑂ @repo.ForksCount</span></a>
+            }
+        </div>
+    </section>
 }
 
 @code {
@@ -49,21 +105,44 @@ else
 
     private async Task LoadAsync()
     {
-        loading = true; error = null;
+        loading = true;
+        error = null;
         try
         {
             repositories = (await GitHub.GetRepositoriesAsync(githubUser, 100)).Where(x => !x.Fork).ToList();
             var total = repositories.Count;
-            languageStats = repositories.GroupBy(x => string.IsNullOrWhiteSpace(x.Language) ? "Other" : x.Language!).Select(g => new LanguageStat(g.Key, g.Count(), total == 0 ? 0 : g.Count() * 100d / total)).OrderByDescending(x => x.Count).ToList();
+            languageStats = repositories
+                .GroupBy(x => string.IsNullOrWhiteSpace(x.Language) ? "Other" : x.Language!)
+                .Select(g => new LanguageStat(g.Key, g.Count(), total == 0 ? 0 : g.Count() * 100d / total))
+                .OrderByDescending(x => x.Count)
+                .ToList();
+
             var activeRepos = repositories.OrderByDescending(x => x.UpdatedAt).Take(8).ToList();
             var commitSets = await Task.WhenAll(activeRepos.Select(repo => GitHub.GetCommitsAsync(githubUser, repo.Name, 20)));
-            var commits = commitSets.SelectMany(x => x).Where(x => x.Commit?.Author?.Date is not null).OrderBy(x => x.Commit!.Author!.Date).ToList();
+            var commits = commitSets
+                .SelectMany(x => x)
+                .Where(x => x.Commit?.Author?.Date is not null)
+                .OrderBy(x => x.Commit!.Author!.Date)
+                .ToList();
             commitCount = commits.Count;
-            var now = DateTimeOffset.UtcNow;
-            commitBuckets = Enumerable.Range(0, 8).Select(i => { var start = new DateTimeOffset(now.Year, now.Month, 1, 0, 0, 0, TimeSpan.Zero).AddMonths(-7 + i); var end = start.AddMonths(1); return new CommitBucket(start.ToLocalTime().ToString("MM/yy"), commits.Count(c => c.Commit!.Author!.Date >= start && c.Commit.Author.Date < end)); }).ToList();
+
+            var monthStart = new DateTimeOffset(DateTimeOffset.UtcNow.Year, DateTimeOffset.UtcNow.Month, 1, 0, 0, 0, TimeSpan.Zero).AddMonths(-7);
+            commitBuckets = Enumerable.Range(0, 8).Select(i =>
+            {
+                var start = monthStart.AddMonths(i);
+                var end = start.AddMonths(1);
+                var count = commits.Count(c => c.Commit!.Author!.Date >= start && c.Commit.Author.Date < end);
+                return new CommitBucket(start.ToLocalTime().ToString("MM/yy"), count);
+            }).ToList();
         }
-        catch (Exception ex) { error = ex.Message; }
-        finally { loading = false; }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            loading = false;
+        }
     }
 
     private double LanguagePercent(int index) => index < languageStats.Count ? languageStats[index].Percent : 0;
