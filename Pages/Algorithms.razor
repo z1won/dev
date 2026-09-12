@@ -1,0 +1,131 @@
+@page "/algorithms"
+@using System.Diagnostics
+@using System.Linq
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Web
+
+<PageTitle>Algorithms | dev</PageTitle>
+
+<div class="page-shell algorithm-page">
+    <section class="page-hero">
+        <div>
+            <span class="eyebrow">ALGORITHM PLAYGROUND</span>
+            <h1>Search, sort & traverse.</h1>
+            <p>Interactive algorithm experiments running entirely in the browser with .NET 10 Blazor WebAssembly.</p>
+        </div>
+        <div class="hero-chip">WASM · CLIENT SIDE</div>
+    </section>
+
+    <section class="algorithm-grid">
+        <article class="tool-panel">
+            <div class="panel-heading"><span>01</span><div><h2>Binary Search</h2><p>Find a target in a sorted sequence.</p></div></div>
+            <div class="control-row">
+                <input class="tool-input" @bind="binaryTargetText" placeholder="Target, e.g. 42" />
+                <button class="primary-button" @onclick="RunBinarySearch">Search</button>
+            </div>
+            <div class="number-strip">
+                @foreach (var (value, index) in binaryValues.Select((value, index) => (value, index)))
+                {
+                    <span class="number-cell @(index == binaryLow || index == binaryHigh ? "range" : "") @(index == binaryFound ? "found" : "")">@value</span>
+                }
+            </div>
+            <div class="result-line">@binaryResult <strong>@(binarySteps > 0 ? $"{binarySteps} steps" : "")</strong></div>
+        </article>
+
+        <article class="tool-panel">
+            <div class="panel-heading"><span>02</span><div><h2>Sorting Benchmark</h2><p>Compare Bubble Sort and Array.Sort.</p></div></div>
+            <div class="control-row">
+                <input class="tool-input" type="number" min="10" max="10000" @bind="sortSize" />
+                <button class="primary-button" @onclick="RunBenchmark">Benchmark</button>
+            </div>
+            <div class="metrics-row">
+                <div><small>Bubble Sort</small><b>@bubbleElapsed ms</b></div>
+                <div><small>Array.Sort</small><b>@arrayElapsed ms</b></div>
+                <div><small>Input</small><b>@sortSize items</b></div>
+            </div>
+        </article>
+
+        <article class="tool-panel graph-panel">
+            <div class="panel-heading"><span>03</span><div><h2>BFS / DFS</h2><p>Traverse a small directed graph.</p></div></div>
+            <div class="control-row">
+                <button class="secondary-button" @onclick="RunBfs">Run BFS</button>
+                <button class="secondary-button" @onclick="RunDfs">Run DFS</button>
+            </div>
+            <div class="graph-canvas">
+                @foreach (var node in graphNodes)
+                {
+                    <div class="graph-node @(traversal.Contains(node) ? "visited" : "")">@node</div>
+                }
+            </div>
+            <div class="result-line"><strong>@(traversal.Count == 0 ? "A → ..." : string.Join(" → ", traversal))</strong></div>
+        </article>
+    </section>
+
+    <section class="complexity-panel">
+        <div><span>COMPLEXITY</span><h2>Know what your code costs.</h2></div>
+        <div class="complexity-grid">
+            <div><b>Binary Search</b><span>O(log n)</span></div>
+            <div><b>Bubble Sort</b><span>O(n²)</span></div>
+            <div><b>Array.Sort</b><span>O(n log n)</span></div>
+            <div><b>BFS / DFS</b><span>O(V + E)</span></div>
+        </div>
+    </section>
+</div>
+
+@code {
+    private readonly int[] binaryValues = [3, 7, 12, 18, 24, 31, 42, 49, 57, 63, 71, 88];
+    private readonly string[] graphNodes = ["A", "B", "C", "D", "E", "F"];
+    private readonly Dictionary<string, string[]> graph = new()
+    {
+        ["A"] = ["B", "C"], ["B"] = ["D", "E"], ["C"] = ["F"],
+        ["D"] = [], ["E"] = ["F"], ["F"] = []
+    };
+
+    private string binaryTargetText = "42";
+    private string binaryResult = "Enter a target and search.";
+    private int binaryLow = -1, binaryHigh = -1, binaryFound = -1, binarySteps;
+    private int sortSize = 1000;
+    private long bubbleElapsed, arrayElapsed;
+    private List<string> traversal = [];
+
+    private void RunBinarySearch()
+    {
+        binaryFound = binaryLow = binaryHigh = -1; binarySteps = 0;
+        if (!int.TryParse(binaryTargetText, out var target)) { binaryResult = "Target must be a number."; return; }
+        var low = 0; var high = binaryValues.Length - 1;
+        while (low <= high)
+        {
+            binarySteps++; binaryLow = low; binaryHigh = high;
+            var mid = low + (high - low) / 2;
+            if (binaryValues[mid] == target) { binaryFound = mid; binaryResult = $"Found {target} at index {mid}."; return; }
+            if (binaryValues[mid] < target) low = mid + 1; else high = mid - 1;
+        }
+        binaryResult = $"{target} was not found.";
+    }
+
+    private void RunBenchmark()
+    {
+        var size = Math.Clamp(sortSize, 10, 10000);
+        var random = new Random(42);
+        var source = Enumerable.Range(0, size).Select(_ => random.Next()).ToArray();
+        var bubble = (int[])source.Clone(); var watch = Stopwatch.StartNew();
+        for (var i = 0; i < bubble.Length - 1; i++)
+            for (var j = 0; j < bubble.Length - i - 1; j++)
+                if (bubble[j] > bubble[j + 1]) (bubble[j], bubble[j + 1]) = (bubble[j + 1], bubble[j]);
+        watch.Stop(); bubbleElapsed = watch.ElapsedMilliseconds;
+        var native = (int[])source.Clone(); watch.Restart(); Array.Sort(native); watch.Stop(); arrayElapsed = watch.ElapsedMilliseconds;
+    }
+
+    private void RunBfs()
+    {
+        traversal = []; var queue = new Queue<string>(); var seen = new HashSet<string>(); queue.Enqueue("A");
+        while (queue.Count > 0) { var node = queue.Dequeue(); if (!seen.Add(node)) continue; traversal.Add(node); foreach (var next in graph[node]) queue.Enqueue(next); }
+    }
+
+    private void RunDfs()
+    {
+        traversal = []; var seen = new HashSet<string>();
+        void Visit(string node) { if (!seen.Add(node)) return; traversal.Add(node); foreach (var next in graph[node]) Visit(next); }
+        Visit("A");
+    }
+}
