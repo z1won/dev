@@ -1,0 +1,124 @@
+@page "/playground"
+@layout MainLayout
+
+<PageTitle>Playground · dev</PageTitle>
+
+<div class="dashboard-header">
+    <div>
+        <p class="eyebrow">05 · Experiment</p>
+        <h1>Algorithm playground.</h1>
+        <p class="lead">Run a browser-native sorting experiment and watch each comparison happen in real time.</p>
+    </div>
+    <div class="playground-actions">
+        <button class="secondary-button" type="button" @onclick="Reset">Reset</button>
+        <button class="primary-button" type="button" @onclick="RunSortAsync" disabled="@running">@(running ? "Sorting..." : "Run bubble sort")</button>
+    </div>
+</div>
+
+<section class="playground-grid">
+    <article class="playground-card visual-card">
+        <div class="card-heading">
+            <div><p class="section-kicker">Live visualization</p><h2>Bubble sort</h2></div>
+            <span>@(running ? "RUNNING" : "READY")</span>
+        </div>
+        <div class="sort-stage" aria-label="Bubble sort visualization">
+            @foreach (var item in values.Select((value, index) => (value, index)))
+            {
+                <div class="sort-column @(item.index == activeIndex ? "active" : "") @(item.index == compareIndex ? "compare" : "")">
+                    <div class="sort-value" style="height:@(item.value * 2)px"></div>
+                    <small>@item.value</small>
+                </div>
+            }
+        </div>
+        <div class="sort-stats">
+            <span>Comparisons <strong>@comparisons</strong></span>
+            <span>Swaps <strong>@swaps</strong></span>
+            <span>Pass <strong>@pass</strong></span>
+        </div>
+    </article>
+
+    <article class="playground-card">
+        <p class="section-kicker">Algorithm</p>
+        <h2>Bubble sort</h2>
+        <p class="muted-copy">A deliberately simple baseline: compare adjacent values and swap them when they are out of order.</p>
+        <div class="complexity-list">
+            <div><span>Best</span><strong>O(n)</strong></div>
+            <div><span>Average</span><strong>O(n²)</strong></div>
+            <div><span>Worst</span><strong>O(n²)</strong></div>
+            <div><span>Space</span><strong>O(1)</strong></div>
+        </div>
+        <div class="code-note"><span>Array size</span><strong>@values.Count</strong><span>Delay</span><strong>80ms</strong></div>
+    </article>
+</section>
+
+<section class="section-block playground-note">
+    <div class="section-heading"><div><p class="section-kicker">Next experiments</p><h2>Playground roadmap</h2></div></div>
+    <div class="roadmap-grid">
+        <div><strong>01</strong><span>Binary search</span><small>Step-by-step search range</small></div>
+        <div><strong>02</strong><span>Path finding</span><small>Grid-based BFS / DFS</small></div>
+        <div><strong>03</strong><span>Data structures</span><small>Stack, queue and tree operations</small></div>
+    </div>
+</section>
+
+@code {
+    private readonly Random random = new();
+    private List<int> values = [];
+    private bool running;
+    private int activeIndex = -1;
+    private int compareIndex = -1;
+    private int comparisons;
+    private int swaps;
+    private int pass;
+
+    protected override void OnInitialized() => Reset();
+
+    private void Reset()
+    {
+        values = Enumerable.Range(0, 18).Select(_ => random.Next(12, 46)).ToList();
+        comparisons = 0;
+        swaps = 0;
+        pass = 0;
+        activeIndex = -1;
+        compareIndex = -1;
+        running = false;
+    }
+
+    private async Task RunSortAsync()
+    {
+        if (running) return;
+        running = true;
+        comparisons = 0;
+        swaps = 0;
+        pass = 0;
+        try
+        {
+            for (var i = 0; i < values.Count - 1; i++)
+            {
+                pass = i + 1;
+                for (var j = 0; j < values.Count - i - 1; j++)
+                {
+                    activeIndex = j;
+                    compareIndex = j + 1;
+                    comparisons++;
+                    await InvokeAsync(StateHasChanged);
+                    await Task.Delay(80);
+
+                    if (values[j] > values[j + 1])
+                    {
+                        (values[j], values[j + 1]) = (values[j + 1], values[j]);
+                        swaps++;
+                        await InvokeAsync(StateHasChanged);
+                        await Task.Delay(80);
+                    }
+                }
+            }
+        }
+        finally
+        {
+            activeIndex = -1;
+            compareIndex = -1;
+            running = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+}
