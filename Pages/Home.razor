@@ -108,14 +108,12 @@
 </section>
 
 <section class="section-block" id="tools">
-    <div class="section-heading"><div><p class="section-kicker">03 · Utilities</p><h2>Developer Tools</h2></div><span class="tool-count">Next</span></div>
+    <div class="section-heading"><div><p class="section-kicker">03 · Utilities</p><h2>Developer Tools</h2></div><a class="tool-count" href="tools">Open tools ↗</a></div>
     <div class="tool-grid">
-        <div class="tool-card"><span>JSON</span><small>Format & validate</small></div>
-        <div class="tool-card"><span>JWT</span><small>Decode tokens</small></div>
-        <div class="tool-card"><span>REGEX</span><small>Test patterns</small></div>
-        <div class="tool-card"><span>DIFF</span><small>Compare text</small></div>
-        <div class="tool-card"><span>BASE64</span><small>Encode & decode</small></div>
-        <div class="tool-card"><span>UUID</span><small>Generate IDs</small></div>
+        @foreach (var tool in dashboardTools)
+        {
+            <a class="dashboard-tool-link" href="tools"><div class="tool-card"><span>@tool.Name</span><small>@tool.Description</small></div></a>
+        }
     </div>
 </section>
 
@@ -126,11 +124,16 @@
 
 <section class="section-block split-section" id="playground">
     <div><p class="section-kicker">05 · Experiment</p><h2>Playground</h2><p>A safe place for C# snippets, algorithms, WASM demos, and small browser experiments.</p></div>
-    <div class="roadmap"><div><strong>01</strong><span>Foundation</span><em>done</em></div><div><strong>02</strong><span>Portal UI</span><em>done</em></div><div><strong>03</strong><span>GitHub API</span><em>done</em></div><div><strong>04</strong><span>Activity timeline</span><em>current</em></div><div><strong>05</strong><span>Developer tools</span><em>next</em></div></div>
+    <div class="roadmap"><div><strong>01</strong><span>Foundation</span><em>done</em></div><div><strong>02</strong><span>Portal UI</span><em>done</em></div><div><strong>03</strong><span>GitHub API</span><em>done</em></div><div><strong>04</strong><span>Activity timeline</span><em>done</em></div><div><strong>05</strong><span>Dense UI + Developer Tools</span><em>current</em></div><div><strong>06</strong><span>Playground expansion</span><em>next</em></div></div>
 </section>
 
 @code {
     private const string githubUser = "z1won";
+    private readonly (string Name, string Description)[] dashboardTools =
+    [
+        ("JSON", "Format & validate"), ("JWT", "Decode tokens"), ("REGEX", "Test patterns"),
+        ("DIFF", "Compare text"), ("BASE64", "Encode & decode"), ("UUID", "Generate IDs")
+    ];
     private GitHubProfile? profile;
     private IReadOnlyList<GitHubRepository> repositories = [];
     private IReadOnlyList<GitHubCommit> commits = [];
@@ -151,13 +154,11 @@
         {
             profile = await GitHub.GetProfileAsync(githubUser);
             repositories = (await GitHub.GetRepositoriesAsync(githubUser, 12)).Where(x => !x.Fork).ToList();
-
             var activityRepos = repositories.Take(4).ToList();
             activityRepoCount = activityRepos.Count;
             var commitTasks = activityRepos.Select(repo => GitHub.GetCommitsAsync(githubUser, repo.Name, 3)).ToArray();
             var pullTasks = activityRepos.Select(repo => GitHub.GetPullRequestsAsync(githubUser, repo.Name, 3)).ToArray();
             var issueTasks = activityRepos.Select(repo => GitHub.GetIssuesAsync(githubUser, repo.Name, 3)).ToArray();
-
             var commitResults = await Task.WhenAll(commitTasks);
             var pullResults = await Task.WhenAll(pullTasks);
             var issueResults = await Task.WhenAll(issueTasks);
@@ -166,12 +167,10 @@
                 "Commit", "commit", "●", activityRepos[repoIndex].Name, Shorten(item.Commit?.Message),
                 $"{item.Author?.Login ?? "GitHub user"} · {FormatDate(item.Commit?.Author?.Date)}",
                 item.Commit?.Author?.Date, item.HtmlUrl))).ToList();
-
             var pullItems = pullResults.SelectMany((items, repoIndex) => items.Select(item => new ActivityEvent(
                 "Pull request", "pull", "↗", activityRepos[repoIndex].Name, $"#{item.Number} · {item.Title}",
                 $"{item.State}{(item.Draft ? " · draft" : "")} · {FormatDate(item.UpdatedAt)}",
                 item.UpdatedAt, item.HtmlUrl))).ToList();
-
             var issueItems = issueResults.SelectMany((items, repoIndex) => items.Where(item => item.PullRequest is null).Select(item => new ActivityEvent(
                 "Issue", "issue", "#", activityRepos[repoIndex].Name, $"#{item.Number} · {item.Title}",
                 $"{item.State} · {FormatDate(item.UpdatedAt)}",
@@ -180,24 +179,13 @@
             commits = commitResults.SelectMany(x => x).OrderByDescending(x => x.Commit?.Author?.Date).Take(8).ToList();
             pullRequests = pullResults.SelectMany(x => x).OrderByDescending(x => x.UpdatedAt).Take(6).ToList();
             issues = issueResults.SelectMany(x => x).Where(x => x.PullRequest is null).OrderByDescending(x => x.UpdatedAt).Take(6).ToList();
-            timeline = commitItems.Concat(pullItems).Concat(issueItems)
-                .OrderByDescending(x => x.Date ?? DateTimeOffset.MinValue)
-                .Take(18)
-                .ToList();
+            timeline = commitItems.Concat(pullItems).Concat(issueItems).OrderByDescending(x => x.Date ?? DateTimeOffset.MinValue).Take(18).ToList();
         }
-        catch (Exception ex)
-        {
-            error = ex.Message;
-        }
-        finally
-        {
-            loading = false;
-        }
+        catch (Exception ex) { error = ex.Message; }
+        finally { loading = false; }
     }
 
-    private static string FormatDate(DateTimeOffset? date)
-        => date is null ? "—" : date.Value.ToLocalTime().ToString("yyyy-MM-dd");
-
+    private static string FormatDate(DateTimeOffset? date) => date is null ? "—" : date.Value.ToLocalTime().ToString("yyyy-MM-dd");
     private static string FormatRelative(DateTimeOffset? date)
     {
         if (date is null) return "—";
@@ -208,12 +196,10 @@
         if (age.TotalDays < 7) return $"{Math.Max(1, (int)age.TotalDays)}d ago";
         return date.Value.ToLocalTime().ToString("MMM d");
     }
-
     private static string Shorten(string? message)
     {
         var firstLine = message?.Split('\n', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "No commit message";
         return firstLine.Length > 78 ? firstLine[..75] + "..." : firstLine;
     }
-
     private sealed record ActivityEvent(string Type, string TypeClass, string Icon, string Repository, string Title, string Detail, DateTimeOffset? Date, string? Url);
 }
