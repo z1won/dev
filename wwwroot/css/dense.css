@@ -1,0 +1,66 @@
+:root {
+    --dense-border: #e2e8f0;
+    --dense-muted: #64748b;
+    --dense-faint: #94a3b8;
+    --dense-ink: #172033;
+    --dense-accent: #4f46e5;
+}
+
+/* Dense dashboard layer: information-first spacing and tighter visual rhythm. */
+.content { padding-top: 28px; padding-bottom: 56px; }
+.dashboard-header { margin-bottom: 20px; }
+.dashboard-header h1 { font-size: clamp(30px, 4vw, 44px); }
+.lead { margin-top: 8px; font-size: 13px; line-height: 1.55; }
+.metrics { gap: 8px; margin-bottom: 32px; }
+.metric-card { min-height: 70px; padding: 12px 14px; gap: 10px; border-radius: 9px; box-shadow: none; }
+.metric-icon { width: 30px; height: 30px; border-radius: 7px; }
+.metric-value { font-size: 14px; }
+.section-block { margin-bottom: 34px; }
+.section-heading { margin-bottom: 10px; }
+h2 { font-size: 19px; }
+.section-kicker { font-size: 9px; letter-spacing: .1em; }
+.profile-card { padding: 10px 12px; margin-bottom: 8px; gap: 10px; border-radius: 8px; }
+.profile-card img { width: 38px; height: 38px; }
+.profile-card h3 { font-size: 13px; }
+.profile-card p { font-size: 10px; }
+.repo-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
+.repo-card, .empty-card { padding: 12px; border-radius: 8px; }
+.repo-card p { min-height: 34px; margin: 6px 0 8px; font-size: 10px; line-height: 1.45; }
+.repo-heading h3 { font-size: 12px; }
+.repo-meta { gap: 7px; margin-bottom: 8px; font-size: 9px; }
+.repo-card a { font-size: 10px; }
+.activity-summary { gap: 6px; margin-bottom: 7px; }
+.activity-summary span { padding: 4px 7px; font-size: 9px; }
+.timeline-card { border-radius: 8px; }
+.timeline-item { gap: 10px; padding: 9px 12px; }
+.timeline-marker { width: 24px; height: 24px; flex-basis: 24px; border-radius: 6px; font-size: 9px; }
+.timeline-content { gap: 2px; }
+.activity-type { font-size: 8px; }
+.activity-repo { font-size: 9px; }
+.timeline-topline time { font-size: 9px; }
+.timeline-content > strong { font-size: 11px; }
+.timeline-content > small { font-size: 9px; }
+.tool-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 7px; }
+.tool-card { min-height: 68px; padding: 11px; border-radius: 8px; }
+.tool-card span { font-size: 10px; }
+.tool-card small { margin-top: 4px; font-size: 9px; }
+.split-section { gap: 28px; }
+.terminal-card { border-radius: 8px; padding: 0 14px 14px; font-size: 10px; }
+.terminal-top { height: 30px; margin-bottom: 12px; }
+.roadmap div { padding: 7px 0 7px 12px; font-size: 11px; }
+
+.dashboard-tool-link { color: inherit; text-decoration: none; display: block; }
+.dashboard-tool-link .tool-card { height: 100%; }
+.dashboard-tool-link:hover .tool-card { border-color: #c7d2fe; background: #fafaff; }
+
+@media (max-width: 1100px) {
+    .repo-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 800px) {
+    .content { padding-top: 22px; }
+    .repo-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .tool-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 520px) {
+    .repo-grid, .tool-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
