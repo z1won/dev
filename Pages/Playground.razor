@@ -3,122 +3,95 @@
 
 <PageTitle>Playground · dev</PageTitle>
 
-<div class="dashboard-header">
-    <div>
-        <p class="eyebrow">05 · Experiment</p>
-        <h1>Algorithm playground.</h1>
-        <p class="lead">Run a browser-native sorting experiment and watch each comparison happen in real time.</p>
-    </div>
-    <div class="playground-actions">
-        <button class="secondary-button" type="button" @onclick="Reset">Reset</button>
-        <button class="primary-button" type="button" @onclick="RunSortAsync" disabled="@running">@(running ? "Sorting..." : "Run bubble sort")</button>
-    </div>
+<div class="dashboard-header playground-header">
+    <div><p class="eyebrow">05 · EXPERIMENT</p><h1>Algorithm playground.</h1><p class="lead">Run an algorithm, inspect each operation, and compare execution metrics in real time.</p></div>
+    <div class="playground-actions"><button class="secondary-button" type="button" @onclick="Reset" disabled="@running">Regenerate</button><button class="primary-button" type="button" @onclick="RunSortAsync" disabled="@running">@(running ? "Running..." : "Run bubble sort")</button></div>
 </div>
+
+<section class="playground-toolbar">
+    <div class="playground-control"><span>ALGORITHM</span><strong>Bubble Sort</strong></div>
+    <label class="playground-control"><span>ARRAY</span><select @bind="arraySize" disabled="@running"><option value="12">12</option><option value="18">18</option><option value="24">24</option><option value="30">30</option></select></label>
+    <label class="playground-control"><span>DELAY</span><select @bind="delayMs" disabled="@running"><option value="0">Instant</option><option value="40">40 ms</option><option value="80">80 ms</option><option value="140">140 ms</option></select></label>
+    <div class="playground-control"><span>STATUS</span><strong>@(running ? "RUNNING" : completed ? "COMPLETE" : "READY")</strong></div>
+</section>
 
 <section class="playground-grid">
     <article class="playground-card visual-card">
-        <div class="card-heading">
-            <div><p class="section-kicker">Live visualization</p><h2>Bubble sort</h2></div>
-            <span>@(running ? "RUNNING" : "READY")</span>
-        </div>
+        <div class="card-heading"><div><p class="section-kicker">01 · LIVE TRACE</p><h2>Bubble sort</h2></div><span>@comparisons comparisons</span></div>
         <div class="sort-stage" aria-label="Bubble sort visualization">
             @foreach (var item in values.Select((value, index) => (value, index)))
             {
-                <div class="sort-column @(item.index == activeIndex ? "active" : "") @(item.index == compareIndex ? "compare" : "")">
-                    <div class="sort-value" style="height:@(item.value * 2)px"></div>
-                    <small>@item.value</small>
-                </div>
+                <div class="sort-column @(item.index == activeIndex ? "active" : "") @(item.index == compareIndex ? "compare" : "")"><div class="sort-value" style="height:@(Math.Max(12, item.value * 2))px"></div><small>@item.value</small></div>
             }
         </div>
-        <div class="sort-stats">
-            <span>Comparisons <strong>@comparisons</strong></span>
-            <span>Swaps <strong>@swaps</strong></span>
-            <span>Pass <strong>@pass</strong></span>
-        </div>
+        <div class="sort-stats"><span>Comparisons <strong>@comparisons</strong></span><span>Swaps <strong>@swaps</strong></span><span>Pass <strong>@pass</strong></span><span>Elapsed <strong>@elapsedMs ms</strong></span></div>
     </article>
 
-    <article class="playground-card">
-        <p class="section-kicker">Algorithm</p>
-        <h2>Bubble sort</h2>
-        <p class="muted-copy">A deliberately simple baseline: compare adjacent values and swap them when they are out of order.</p>
-        <div class="complexity-list">
-            <div><span>Best</span><strong>O(n)</strong></div>
-            <div><span>Average</span><strong>O(n²)</strong></div>
-            <div><span>Worst</span><strong>O(n²)</strong></div>
-            <div><span>Space</span><strong>O(1)</strong></div>
-        </div>
-        <div class="code-note"><span>Array size</span><strong>@values.Count</strong><span>Delay</span><strong>80ms</strong></div>
+    <article class="playground-card inspector-card">
+        <div class="card-heading"><div><p class="section-kicker">02 · INSPECTOR</p><h2>Execution profile</h2></div></div>
+        <div class="profile-metrics"><div><span>Operations</span><strong>@(comparisons + swaps)</strong></div><div><span>Swap rate</span><strong>@(comparisons == 0 ? "0%" : $"{swaps * 100.0 / comparisons:0}%")</strong></div><div><span>Input</span><strong>@values.Count items</strong></div><div><span>State</span><strong>@(IsSorted ? "Sorted" : "Unsorted")</strong></div></div>
+        <div class="complexity-list"><div><span>Best</span><strong>O(n)</strong></div><div><span>Average</span><strong>O(n²)</strong></div><div><span>Worst</span><strong>O(n²)</strong></div><div><span>Space</span><strong>O(1)</strong></div></div>
+        <div class="operation-line"><span>Last operation</span><strong>@lastOperation</strong></div>
     </article>
 </section>
 
-<section class="section-block playground-note">
-    <div class="section-heading"><div><p class="section-kicker">Next experiments</p><h2>Playground roadmap</h2></div></div>
-    <div class="roadmap-grid">
-        <div><strong>01</strong><span>Binary search</span><small>Step-by-step search range</small></div>
-        <div><strong>02</strong><span>Path finding</span><small>Grid-based BFS / DFS</small></div>
-        <div><strong>03</strong><span>Data structures</span><small>Stack, queue and tree operations</small></div>
-    </div>
-</section>
+<section class="playground-console"><div class="console-heading"><span>03 · OPERATION LOG</span><strong>Latest 6 events</strong></div><div class="console-grid">@if (operationLog.Count == 0){<span class="console-empty">Run the algorithm to inspect its operation stream.</span>}else{foreach (var entry in operationLog.TakeLast(6).Reverse()){<div><span>@entry.Step.ToString("000")</span><strong>@entry.Message</strong></div>}}</div></section>
+
+<section class="section-block playground-note"><div class="section-heading"><div><p class="section-kicker">04 · ROADMAP</p><h2>Next experiments</h2></div><span>1 / 4</span></div><div class="roadmap-grid"><div class="roadmap-active"><strong>01</strong><span>Bubble sort</span><small>Live comparison and swap trace</small></div><div><strong>02</strong><span>Binary search</span><small>Search range and midpoint trace</small></div><div><strong>03</strong><span>Path finding</span><small>Grid-based BFS / DFS</small></div><div><strong>04</strong><span>Data structures</span><small>Stack, queue and tree operations</small></div></div></section>
 
 @code {
     private readonly Random random = new();
     private List<int> values = [];
+    private List<OperationEntry> operationLog = [];
     private bool running;
-    private int activeIndex = -1;
-    private int compareIndex = -1;
-    private int comparisons;
-    private int swaps;
-    private int pass;
+    private bool completed;
+    private int activeIndex = -1, compareIndex = -1, comparisons, swaps, pass;
+    private int arraySize = 18, delayMs = 80;
+    private long elapsedMs;
+    private string lastOperation = "—";
+    private Stopwatch stopwatch = new();
+    private bool IsSorted => values.Count > 1 && values.Zip(values.Skip(1), (a, b) => a <= b).All(x => x);
 
     protected override void OnInitialized() => Reset();
 
     private void Reset()
     {
-        values = Enumerable.Range(0, 18).Select(_ => random.Next(12, 46)).ToList();
-        comparisons = 0;
-        swaps = 0;
-        pass = 0;
-        activeIndex = -1;
-        compareIndex = -1;
-        running = false;
+        values = Enumerable.Range(0, arraySize).Select(_ => random.Next(12, 46)).ToList();
+        comparisons = swaps = pass = 0; elapsedMs = 0; activeIndex = compareIndex = -1;
+        lastOperation = "Array generated"; completed = false;
+        operationLog = [new OperationEntry(0, $"Generated {values.Count} random values")];
     }
 
     private async Task RunSortAsync()
     {
         if (running) return;
-        running = true;
-        comparisons = 0;
-        swaps = 0;
-        pass = 0;
+        running = true; completed = false; comparisons = swaps = pass = 0; operationLog = []; stopwatch.Restart();
         try
         {
             for (var i = 0; i < values.Count - 1; i++)
             {
-                pass = i + 1;
+                pass = i + 1; var swappedThisPass = false;
                 for (var j = 0; j < values.Count - i - 1; j++)
                 {
-                    activeIndex = j;
-                    compareIndex = j + 1;
-                    comparisons++;
-                    await InvokeAsync(StateHasChanged);
-                    await Task.Delay(80);
-
+                    activeIndex = j; compareIndex = j + 1; comparisons++;
+                    lastOperation = $"Compare {values[j]} ↔ {values[j + 1]}";
+                    operationLog.Add(new OperationEntry(comparisons + swaps, lastOperation)); await RenderStepAsync();
                     if (values[j] > values[j + 1])
                     {
-                        (values[j], values[j + 1]) = (values[j + 1], values[j]);
-                        swaps++;
-                        await InvokeAsync(StateHasChanged);
-                        await Task.Delay(80);
+                        (values[j], values[j + 1]) = (values[j + 1], values[j]); swaps++; swappedThisPass = true;
+                        lastOperation = $"Swap → {values[j]} ↔ {values[j + 1]}";
+                        operationLog.Add(new OperationEntry(comparisons + swaps, lastOperation)); await RenderStepAsync();
                     }
                 }
+                if (!swappedThisPass) break;
             }
         }
         finally
         {
-            activeIndex = -1;
-            compareIndex = -1;
-            running = false;
-            await InvokeAsync(StateHasChanged);
+            stopwatch.Stop(); elapsedMs = stopwatch.ElapsedMilliseconds; activeIndex = compareIndex = -1; running = false; completed = true; lastOperation = $"Completed in {elapsedMs} ms"; await InvokeAsync(StateHasChanged);
         }
     }
+
+    private async Task RenderStepAsync(){ await InvokeAsync(StateHasChanged); if (delayMs > 0) await Task.Delay(delayMs); }
+    private sealed record OperationEntry(int Step, string Message);
 }
