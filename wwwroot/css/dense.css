@@ -65,6 +65,29 @@ h2 { font-size: 19px; }
 .terminal-ok { font-weight:600; }
 .roadmap div { padding:7px 0 7px 12px; font-size:11px; }
 
+/* Shared Developer OS shell polish. */
+.sidebar { width:228px; flex-basis:228px; padding:22px 14px; }
+.brand { position:relative; gap:8px; margin-bottom:30px; padding:0 9px; font-size:20px; }
+.brand small { margin-left:auto; color:#64748b; font:7px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing:.08em; }
+.nav-group { margin-bottom:22px; }
+.nav-label { padding-bottom:7px; font-size:9px; }
+.sidebar nav { gap:2px; }
+.sidebar a { position:relative; padding:8px 9px; border-radius:6px; gap:8px; font-size:12px; }
+.sidebar a span { width:16px; font-size:11px; }
+.sidebar kbd { margin-left:auto; color:#64748b; background:transparent; border:0; padding:0; font:8px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.sidebar a.active kbd { color:#a5b4fc; }
+.sidebar-footer { padding:11px 9px; }
+.stack-badge { display:flex; align-items:center; gap:6px; font:8px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing:.05em; }
+.stack-badge .status-dot { width:5px; height:5px; box-shadow:none; }
+.topbar { height:48px; padding:0 28px; }
+.topbar-route { display:flex; align-items:center; gap:7px; font:10px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.topbar-title { font-size:11px; font-weight:700; }
+.topbar-separator { color:#cbd5e1; }
+.topbar-path { margin:0; font-size:10px; color:#64748b; }
+.topbar-meta { display:flex; align-items:center; gap:14px; }
+.topbar-status { font:9px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing:.04em; }
+.topbar-stack { color:#94a3b8; font:8px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing:.06em; }
+
 .dashboard-tool-link { color: inherit; text-decoration: none; display: block; }
 .dashboard-tool-link .tool-card { height: 100%; }
 .dashboard-tool-link:hover .tool-card { border-color: #c7d2fe; background: #fafaff; }
@@ -79,8 +102,17 @@ h2 { font-size: 19px; }
     .dashboard-commandbar { align-items:flex-start; flex-direction:column; }
     .section-heading { align-items:flex-start; }
     .section-command { white-space:normal; }
+    .sidebar { width:auto; padding:14px 16px; }
+    .brand { margin-bottom:14px; }
+    .brand small { display:none; }
+    .nav-group { margin-bottom:8px; }
+    .sidebar nav { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .sidebar a { font-size:11px; }
+    .topbar { padding:0 20px; }
+    .topbar-stack { display:none; }
 }
 @media (max-width: 520px) {
     .repo-grid, .tool-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .topbar-meta { gap:0; }
 }
