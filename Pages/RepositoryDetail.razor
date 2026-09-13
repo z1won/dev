@@ -1,0 +1,148 @@
+@page "/repositories/{RepositoryName}"
+@layout MainLayout
+@inject GitHubApiClient GitHub
+@inject NavigationManager NavManager
+
+<PageTitle>@(repository?.Name ?? RepositoryName) · dev</PageTitle>
+
+<div class="dashboard-commandbar">
+    <div class="command-path"><span>dev</span><b>/</b><strong>repositories/@RepositoryName</strong></div>
+    <div class="command-status"><span class="status-dot"></span> LIVE · REPOSITORY</div>
+</div>
+
+@if (loading)
+{
+    <section class="repository-detail-loading">Loading repository telemetry…</section>
+}
+else if (error is not null)
+{
+    <div class="error-banner" role="alert">Repository could not be loaded: @error</div>
+    <a class="repository-back" href="@($"{NavManager.BaseUri}repositories")">← Back to repositories</a>
+}
+else if (repository is not null)
+{
+    <div class="repository-detail-head">
+        <div>
+            <a class="repository-back" href="@($"{NavManager.BaseUri}repositories")">← Repository Explorer</a>
+            <p class="eyebrow">GitHub / Repository Detail</p>
+            <h1>@repository.Name</h1>
+            <p class="lead">@(repository.Description ?? "No description provided.")</p>
+        </div>
+        <a class="repository-github" href="@repository.HtmlUrl" target="_blank" rel="noopener">Open on GitHub ↗</a>
+    </div>
+
+    <section class="repository-kpis">
+        <div><span>STARS</span><strong>★ @repository.StargazersCount</strong></div>
+        <div><span>FORKS</span><strong>⑂ @repository.ForksCount</strong></div>
+        <div><span>LANGUAGE</span><strong>@(repository.Language ?? "Unknown")</strong></div>
+        <div><span>UPDATED</span><strong>@FormatDate(repository.UpdatedAt)</strong></div>
+    </section>
+
+    <section class="repository-detail-grid">
+        <div class="repository-panel repository-readme">
+            <div class="repository-panel-head"><span>README</span><small>@(readme?.Name ?? "not found")</small></div>
+            @if (!string.IsNullOrWhiteSpace(readme?.DecodedContent))
+            {
+                <pre>@readme.DecodedContent</pre>
+            }
+            else
+            {
+                <div class="repository-empty">No README content available.</div>
+            }
+        </div>
+
+        <div class="repository-side-stack">
+            <div class="repository-panel">
+                <div class="repository-panel-head"><span>RECENT COMMITS</span><small>@commits.Count</small></div>
+                @foreach (var commit in commits)
+                {
+                    <a class="repository-event" href="@commit.HtmlUrl" target="_blank" rel="noopener">
+                        <span class="event-code">@commit.Sha[..Math.Min(7, commit.Sha.Length)]</span>
+                        <span class="event-copy"><b>@ShortMessage(commit.Commit?.Message)</b><small>@FormatDate(commit.Commit?.Author?.Date)</small></span>
+                    </a>
+                }
+                @if (commits.Count == 0) { <div class="repository-empty">No recent commits.</div> }
+            </div>
+
+            <div class="repository-panel">
+                <div class="repository-panel-head"><span>PULL REQUESTS</span><small>@pullRequests.Count</small></div>
+                @foreach (var pullRequest in pullRequests)
+                {
+                    <a class="repository-event" href="@pullRequest.HtmlUrl" target="_blank" rel="noopener">
+                        <span class="event-code">#@pullRequest.Number</span>
+                        <span class="event-copy"><b>@(pullRequest.Title ?? "Untitled pull request")</b><small>@(pullRequest.State ?? "unknown") · @FormatDate(pullRequest.UpdatedAt)</small></span>
+                    </a>
+                }
+                @if (pullRequests.Count == 0) { <div class="repository-empty">No recent pull requests.</div> }
+            </div>
+
+            <div class="repository-panel">
+                <div class="repository-panel-head"><span>ISSUES</span><small>@issues.Count</small></div>
+                @foreach (var issue in issues.Where(x => x.PullRequest is null))
+                {
+                    <a class="repository-event" href="@issue.HtmlUrl" target="_blank" rel="noopener">
+                        <span class="event-code">#@issue.Number</span>
+                        <span class="event-copy"><b>@(issue.Title ?? "Untitled issue")</b><small>@(issue.State ?? "unknown") · @FormatDate(issue.UpdatedAt)</small></span>
+                    </a>
+                }
+                @if (!issues.Any(x => x.PullRequest is null)) { <div class="repository-empty">No recent issues.</div> }
+            </div>
+        </div>
+    </section>
+}
+
+@code {
+    [Parameter] public string RepositoryName { get; set; } = string.Empty;
+
+    private GitHubRepository? repository;
+    private GitHubReadme? readme;
+    private IReadOnlyList<GitHubCommit> commits = [];
+    private IReadOnlyList<GitHubPullRequest> pullRequests = [];
+    private IReadOnlyList<GitHubIssue> issues = [];
+    private bool loading;
+    private string? error;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        loading = true;
+        error = null;
+        repository = null;
+        readme = null;
+        commits = [];
+        pullRequests = [];
+        issues = [];
+
+        try
+        {
+            var repoTask = GitHub.GetRepositoryAsync("z1won", RepositoryName);
+            var readmeTask = GitHub.GetReadmeAsync("z1won", RepositoryName);
+            var commitsTask = GitHub.GetCommitsAsync("z1won", RepositoryName, 8);
+            var pullsTask = GitHub.GetPullRequestsAsync("z1won", RepositoryName, 5);
+            var issuesTask = GitHub.GetIssuesAsync("z1won", RepositoryName, 5);
+            await Task.WhenAll(repoTask, readmeTask, commitsTask, pullsTask, issuesTask);
+
+            repository = await repoTask;
+            readme = await readmeTask;
+            commits = await commitsTask;
+            pullRequests = await pullsTask;
+            issues = await issuesTask;
+
+            if (repository is null) error = "Repository was not found.";
+        }
+        catch (Exception ex) { error = ex.Message; }
+        finally { loading = false; }
+    }
+
+    private static string ShortMessage(string? message)
+    {
+        var firstLine = message?.Split('\n', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()?.Trim();
+        return string.IsNullOrWhiteSpace(firstLine) ? "Untitled commit" : firstLine;
+    }
+
+    private static string FormatDate(DateTimeOffset? date) => date is null ? "—" : date.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+}
