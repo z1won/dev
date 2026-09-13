@@ -17,6 +17,7 @@ builder.Services.AddScoped(sp =>
     client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
     return client;
 });
+builder.Services.AddScoped<ApiTelemetry>();
 builder.Services.AddScoped<GitHubApiClient>();
 
 await builder.Build().RunAsync();
