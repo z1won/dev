@@ -4,94 +4,17 @@
 @inject NavigationManager NavManager
 
 <PageTitle>Repositories · dev</PageTitle>
-
-<div class="dashboard-commandbar">
-    <div class="command-path"><span>dev</span><b>/</b><strong>repositories</strong></div>
-    <div class="command-status"><span class="status-dot"></span> LIVE · GITHUB API</div>
-</div>
-
-<div class="dashboard-header repositories-header">
-    <div>
-        <p class="eyebrow">GitHub / Repository Explorer</p>
-        <h1>Browse the portfolio.</h1>
-        <p class="lead">Search, filter, rank, and inspect public repositories using live GitHub metadata.</p>
-    </div>
-    <button class="refresh-button" type="button" @onclick="LoadAsync" disabled="@loading">@(loading ? "Loading..." : "Refresh data")</button>
-</div>
-
-@if (error is not null)
-{
-    <div class="error-banner" role="alert">GitHub data could not be loaded: @error</div>
-}
-
-<section class="repo-explorer">
-    <div class="repo-toolbar">
-        <label class="repo-search"><span>SEARCH</span><input @bind="query" @bind:event="oninput" placeholder="Repository name or description..." /></label>
-        <label><span>LANGUAGE</span><select @bind="language"><option value="All">All languages</option>@foreach (var item in languages){<option value="@item">@item</option>}</select></label>
-        <label><span>SORT</span><select @bind="sort"><option value="updated">Recently updated</option><option value="stars">Most stars</option><option value="forks">Most forks</option><option value="name">Name</option></select></label>
-    </div>
-
-    <div class="repo-explorer-meta"><span><b>@filteredRepositories.Count</b> shown / @repositories.Count repositories</span><span>@languages.Count languages</span></div>
-
-    @if (loading && repositories.Count == 0)
-    {
-        <div class="repo-explorer-empty">Loading repository index…</div>
-    }
-    else if (filteredRepositories.Count == 0)
-    {
-        <div class="repo-explorer-empty">No repositories match the current filters.</div>
-    }
-    else
-    {
-        <div class="repo-explorer-grid">
-            @foreach (var repo in filteredRepositories)
-            {
-                <article class="repo-explorer-card">
-                    <div class="repo-explorer-top"><span class="repo-rank">@GetRank(repo)</span><span class="repo-language">@(repo.Language ?? "Unknown")</span></div>
-                    <h2>@repo.Name</h2>
-                    <p>@(repo.Description ?? "No description provided.")</p>
-                    <div class="repo-explorer-stats"><span>★ @repo.StargazersCount</span><span>⑂ @repo.ForksCount</span><span>@FormatDate(repo.UpdatedAt)</span></div>
-                    <div class="repo-explorer-actions">
-                        <a class="repo-detail-link" href="@DetailUrl(repo.Name)">Inspect repository →</a>
-                        <a href="@repo.HtmlUrl" target="_blank" rel="noopener">GitHub ↗</a>
-                    </div>
-                </article>
-            }
-        </div>
-    }
+<div class="dashboard-commandbar"><div class="command-path"><span>dev</span><b>/</b><strong>repositories</strong></div><div class="command-status"><span class="status-dot"></span> LIVE · GITHUB API</div></div>
+<div class="dashboard-header repositories-header"><div><p class="eyebrow">GitHub / Repository Explorer</p><h1>Browse the portfolio.</h1><p class="lead">Search, filter, rank, and inspect public repositories using live GitHub metadata.</p></div><button class="refresh-button" type="button" @onclick="LoadAsync" disabled="@loading">@(loading ? "Loading..." : "Refresh data")</button></div>
+@if (error is not null) { <div class="error-banner" role="alert">GitHub data could not be loaded: @error</div> }
+<section class="repo-explorer"><div class="repo-toolbar"><label class="repo-search"><span>SEARCH</span><input @bind="query" @bind:event="oninput" placeholder="Repository name or description..." /></label><label><span>LANGUAGE</span><select @bind="language"><option value="All">All languages</option>@foreach (var item in languages){<option value="@item">@item</option>}</select></label><label><span>SORT</span><select @bind="sort"><option value="updated">Recently updated</option><option value="stars">Most stars</option><option value="forks">Most forks</option><option value="name">Name</option></select></label></div><div class="repo-explorer-meta"><span><b>@filteredRepositories.Count()</b> shown / @repositories.Count repositories</span><span>@languages.Count languages</span></div>
+@if (loading && repositories.Count==0) { <div class="repo-explorer-empty">Loading repository index…</div> } else if (!filteredRepositories.Any()) { <div class="repo-explorer-empty">No repositories match the current filters.</div> } else { <div class="repo-explorer-grid">@foreach(var repo in filteredRepositories){<article class="repo-explorer-card"><div class="repo-explorer-top"><span class="repo-rank">@GetRank(repo)</span><span class="repo-language">@(repo.Language??"Unknown")</span></div><h2>@repo.Name</h2><p>@(repo.Description??"No description provided.")</p><div class="repo-explorer-stats"><span>★ @repo.StargazersCount</span><span>⑂ @repo.ForksCount</span><span>@FormatDate(repo.UpdatedAt)</span></div><div class="repo-explorer-actions"><a class="repo-detail-link" href="@DetailUrl(repo.Name)">Inspect repository →</a><a href="@repo.HtmlUrl" target="_blank" rel="noopener">GitHub ↗</a></div></article>}}</div>}
 </section>
-
 @code {
-    private const string githubUser = "z1won";
-    private IReadOnlyList<GitHubRepository> repositories = [];
-    private bool loading;
-    private string? error;
-    private string query = "";
-    private string language = "All";
-    private string sort = "updated";
-
-    private IEnumerable<GitHubRepository> filteredRepositories => repositories
-        .Where(repo => language == "All" || (repo.Language ?? "Unknown") == language)
-        .Where(repo => string.IsNullOrWhiteSpace(query) || repo.Name.Contains(query, StringComparison.OrdinalIgnoreCase) || (repo.Description?.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false))
-        .OrderByDescending(repo => sort == "updated" ? repo.UpdatedAt : null)
-        .ThenByDescending(repo => sort == "stars" ? repo.StargazersCount : 0)
-        .ThenByDescending(repo => sort == "forks" ? repo.ForksCount : 0)
-        .ThenBy(repo => sort == "name" ? repo.Name : "");
-
-    private IReadOnlyList<string> languages => repositories.Select(x => x.Language ?? "Unknown").Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x).ToList();
-
-    protected override async Task OnInitializedAsync() => await LoadAsync();
-
-    private async Task LoadAsync()
-    {
-        loading = true;
-        error = null;
-        try { repositories = (await GitHub.GetRepositoriesAsync(githubUser, 100)).Where(x => !x.Fork).ToList(); }
-        catch (Exception ex) { error = ex.Message; }
-        finally { loading = false; }
-    }
-
-    private string DetailUrl(string name) => $"{NavManager.BaseUri}repositories/{Uri.EscapeDataString(name)}";
-    private int GetRank(GitHubRepository repo) => repositories.OrderByDescending(x => x.StargazersCount).ToList().IndexOf(repo) + 1;
-    private static string FormatDate(DateTimeOffset? date) => date is null ? "—" : date.Value.ToLocalTime().ToString("yyyy-MM-dd");
+private const string githubUser="z1won"; private IReadOnlyList<GitHubRepository> repositories=[]; private bool loading; private string? error; private string query=""; private string language="All"; private string sort="updated";
+private IEnumerable<GitHubRepository> filteredRepositories => repositories.Where(repo=>language=="All"||(repo.Language??"Unknown")==language).Where(repo=>string.IsNullOrWhiteSpace(query)||repo.Name.Contains(query,StringComparison.OrdinalIgnoreCase)||(repo.Description?.Contains(query,StringComparison.OrdinalIgnoreCase)??false)).OrderByDescending(repo=>sort=="updated"?repo.UpdatedAt:null).ThenByDescending(repo=>sort=="stars"?repo.StargazersCount:0).ThenByDescending(repo=>sort=="forks"?repo.ForksCount:0).ThenBy(repo=>sort=="name"?repo.Name:"");
+private IReadOnlyList<string> languages=>repositories.Select(x=>x.Language??"Unknown").Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x=>x).ToList();
+protected override async Task OnInitializedAsync()=>await LoadAsync();
+private async Task LoadAsync(){loading=true;error=null;try{repositories=(await GitHub.GetRepositoriesAsync(githubUser,100)).Where(x=>!x.Fork).ToList();}catch(Exception ex){error=ex.Message;}finally{loading=false;}}
+private string DetailUrl(string name)=>$"{NavManager.BaseUri}repositories/{Uri.EscapeDataString(name)}"; private int GetRank(GitHubRepository repo)=>repositories.OrderByDescending(x=>x.StargazersCount).ToList().IndexOf(repo)+1; private static string FormatDate(DateTimeOffset? date)=>date is null?"—":date.Value.ToLocalTime().ToString("yyyy-MM-dd");
 }
