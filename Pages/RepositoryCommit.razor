@@ -1,0 +1,116 @@
+@page "/repositories/{RepositoryName}/commits/{CommitSha}"
+@layout MainLayout
+@inject GitHubApiClient GitHub
+@inject NavigationManager NavManager
+
+<PageTitle>Commit @ShortSha · @RepositoryName · dev</PageTitle>
+
+<div class="dashboard-commandbar">
+    <div class="command-path"><span>dev</span><b>/</b><strong>repositories/@RepositoryName/commits/@ShortSha</strong></div>
+    <div class="command-status"><span class="status-dot"></span> LIVE · COMMIT</div>
+</div>
+
+@if (loading)
+{
+    <section class="repository-detail-loading">Loading commit telemetry…</section>
+}
+else if (error is not null)
+{
+    <div class="error-banner" role="alert">Commit could not be loaded: @error</div>
+    <a class="repository-back" href="@RepositoryUrl">← Back to repository</a>
+}
+else if (commit is not null)
+{
+    <div class="commit-head">
+        <div>
+            <a class="repository-back" href="@RepositoryUrl">← @RepositoryName</a>
+            <p class="eyebrow">GitHub / Commit Detail</p>
+            <h1>@ShortMessage(commit.Commit?.Message)</h1>
+            <p class="commit-meta"><code>@commit.Sha</code> · @(commit.Author?.Login ?? commit.Commit?.Author?.Name ?? "unknown author") · @FormatDate(commit.Commit?.Author?.Date)</p>
+        </div>
+        <a class="repository-github" href="@commit.HtmlUrl" target="_blank" rel="noopener">Open on GitHub ↗</a>
+    </div>
+
+    <section class="commit-kpis">
+        <div><span>FILES</span><strong>@(commit.Files?.Count ?? 0)</strong></div>
+        <div><span>CHANGES</span><strong>@(commit.Stats?.Total ?? 0)</strong></div>
+        <div><span>ADDITIONS</span><strong>+@(commit.Stats?.Additions ?? 0)</strong></div>
+        <div><span>DELETIONS</span><strong>-@(commit.Stats?.Deletions ?? 0)</strong></div>
+    </section>
+
+    <section class="commit-workspace">
+        <div class="repository-panel">
+            <div class="repository-panel-head"><span>CHANGED FILES</span><small>@(commit.Files?.Count ?? 0) files</small></div>
+            @if (commit.Files is null || commit.Files.Count == 0)
+            {
+                <div class="repository-empty">No file-level changes returned by GitHub.</div>
+            }
+            else
+            {
+                @foreach (var file in commit.Files)
+                {
+                    <article class="commit-file">
+                        <div class="commit-file-head">
+                            <div><span class="commit-file-status">@StatusLabel(file.Status)</span><code>@file.Filename</code></div>
+                            <span class="commit-file-stats">+@file.Additions / -@file.Deletions</span>
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(file.Patch))
+                        {
+                            <pre class="commit-patch">@file.Patch</pre>
+                        }
+                        else
+                        {
+                            <div class="commit-no-patch">Patch unavailable for this file.</div>
+                        }
+                    </article>
+                }
+            }
+        </div>
+    </section>
+}
+
+@code {
+    [Parameter] public string RepositoryName { get; set; } = string.Empty;
+    [Parameter] public string CommitSha { get; set; } = string.Empty;
+
+    private GitHubCommitDetail? commit;
+    private bool loading;
+    private string? error;
+
+    private string RepositoryUrl => $"{NavManager.BaseUri}repositories/{Uri.EscapeDataString(RepositoryName)}";
+    private string ShortSha => CommitSha.Length > 7 ? CommitSha[..7] : CommitSha;
+
+    protected override async Task OnParametersSetAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        loading = true;
+        error = null;
+        commit = null;
+        try
+        {
+            commit = await GitHub.GetCommitAsync("z1won", RepositoryName, CommitSha);
+            if (commit is null) error = "Commit was not found.";
+        }
+        catch (Exception ex) { error = ex.Message; }
+        finally { loading = false; }
+    }
+
+    private static string ShortMessage(string? message)
+    {
+        var firstLine = message?.Split('\n', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()?.Trim();
+        return string.IsNullOrWhiteSpace(firstLine) ? "Untitled commit" : firstLine;
+    }
+
+    private static string StatusLabel(string? status) => status?.ToUpperInvariant() switch
+    {
+        "ADDED" => "A",
+        "MODIFIED" => "M",
+        "REMOVED" => "D",
+        "RENAMED" => "R",
+        "COPIED" => "C",
+        _ => "·"
+    };
+
+    private static string FormatDate(DateTimeOffset? date) => date is null ? "—" : date.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+}
