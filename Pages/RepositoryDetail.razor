@@ -56,7 +56,7 @@ else if (repository is not null)
                 <div class="repository-panel-head"><span>RECENT COMMITS</span><small>@commits.Count</small></div>
                 @foreach (var commit in commits)
                 {
-                    <a class="repository-event" href="@commit.HtmlUrl" target="_blank" rel="noopener">
+                    <a class="repository-event" href="@CommitUrl(commit.Sha)">
                         <span class="event-code">@commit.Sha[..Math.Min(7, commit.Sha.Length)]</span>
                         <span class="event-copy"><b>@ShortMessage(commit.Commit?.Message)</b><small>@FormatDate(commit.Commit?.Author?.Date)</small></span>
                     </a>
@@ -102,10 +102,7 @@ else if (repository is not null)
     private bool loading;
     private string? error;
 
-    protected override async Task OnParametersSetAsync()
-    {
-        await LoadAsync();
-    }
+    protected override async Task OnParametersSetAsync() => await LoadAsync();
 
     private async Task LoadAsync()
     {
@@ -137,6 +134,8 @@ else if (repository is not null)
         catch (Exception ex) { error = ex.Message; }
         finally { loading = false; }
     }
+
+    private string CommitUrl(string sha) => $"{NavManager.BaseUri}repositories/{Uri.EscapeDataString(RepositoryName)}/commits/{Uri.EscapeDataString(sha)}";
 
     private static string ShortMessage(string? message)
     {
