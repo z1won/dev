@@ -1,18 +1,22 @@
 @page "/playground"
 @layout MainLayout
+@using System.Diagnostics
+@using System.Linq
 
 <PageTitle>Playground · dev</PageTitle>
 
 <div class="dashboard-header playground-header">
-    <div><p class="eyebrow">05 · EXPERIMENT</p><h1>Algorithm playground.</h1><p class="lead">Run an algorithm, inspect each operation, and compare execution metrics in real time.</p></div>
+    <div><p class="eyebrow">05 · EXPERIMENT / LIVE TRACE</p><h1>Algorithm playground.</h1><p class="lead">Run an algorithm, inspect each operation, and compare execution metrics in real time.</p></div>
     <div class="playground-actions"><button class="secondary-button" type="button" @onclick="Reset" disabled="@running">Regenerate</button><button class="primary-button" type="button" @onclick="RunSortAsync" disabled="@running">@(running ? "Running..." : "Run bubble sort")</button></div>
 </div>
+
+<div class="playground-commandbar"><span>dev / playground / bubble-sort</span><span class="playground-status"><i></i>@(running ? "EXECUTING" : completed ? "COMPLETE" : "READY")</span><span class="playground-tags"><b>WASM</b><b>CLIENT</b><b>TRACE</b></span></div>
 
 <section class="playground-toolbar">
     <div class="playground-control"><span>ALGORITHM</span><strong>Bubble Sort</strong></div>
     <label class="playground-control"><span>ARRAY</span><select @bind="arraySize" disabled="@running"><option value="12">12</option><option value="18">18</option><option value="24">24</option><option value="30">30</option></select></label>
     <label class="playground-control"><span>DELAY</span><select @bind="delayMs" disabled="@running"><option value="0">Instant</option><option value="40">40 ms</option><option value="80">80 ms</option><option value="140">140 ms</option></select></label>
-    <div class="playground-control"><span>STATUS</span><strong>@(running ? "RUNNING" : completed ? "COMPLETE" : "READY")</strong></div>
+    <div class="playground-control"><span>STATE</span><strong>@(running ? "RUNNING" : completed ? "COMPLETE" : "READY")</strong></div>
 </section>
 
 <section class="playground-grid">
@@ -28,7 +32,7 @@
     </article>
 
     <article class="playground-card inspector-card">
-        <div class="card-heading"><div><p class="section-kicker">02 · INSPECTOR</p><h2>Execution profile</h2></div></div>
+        <div class="card-heading"><div><p class="section-kicker">02 · INSPECTOR</p><h2>Execution profile</h2></div><span>LOCAL RUNTIME</span></div>
         <div class="profile-metrics"><div><span>Operations</span><strong>@(comparisons + swaps)</strong></div><div><span>Swap rate</span><strong>@(comparisons == 0 ? "0%" : $"{swaps * 100.0 / comparisons:0}%")</strong></div><div><span>Input</span><strong>@values.Count items</strong></div><div><span>State</span><strong>@(IsSorted ? "Sorted" : "Unsorted")</strong></div></div>
         <div class="complexity-list"><div><span>Best</span><strong>O(n)</strong></div><div><span>Average</span><strong>O(n²)</strong></div><div><span>Worst</span><strong>O(n²)</strong></div><div><span>Space</span><strong>O(1)</strong></div></div>
         <div class="operation-line"><span>Last operation</span><strong>@lastOperation</strong></div>
