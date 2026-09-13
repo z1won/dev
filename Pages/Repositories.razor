@@ -1,6 +1,7 @@
 @page "/repositories"
 @layout MainLayout
 @inject GitHubApiClient GitHub
+@inject NavigationManager NavManager
 
 <PageTitle>Repositories · dev</PageTitle>
 
@@ -13,7 +14,7 @@
     <div>
         <p class="eyebrow">GitHub / Repository Explorer</p>
         <h1>Browse the portfolio.</h1>
-        <p class="lead">Search, filter, and rank public repositories using live GitHub metadata.</p>
+        <p class="lead">Search, filter, rank, and inspect public repositories using live GitHub metadata.</p>
     </div>
     <button class="refresh-button" type="button" @onclick="LoadAsync" disabled="@loading">@(loading ? "Loading..." : "Refresh data")</button>
 </div>
@@ -50,7 +51,10 @@
                     <h2>@repo.Name</h2>
                     <p>@(repo.Description ?? "No description provided.")</p>
                     <div class="repo-explorer-stats"><span>★ @repo.StargazersCount</span><span>⑂ @repo.ForksCount</span><span>@FormatDate(repo.UpdatedAt)</span></div>
-                    <a href="@repo.HtmlUrl" target="_blank" rel="noopener">Open on GitHub ↗</a>
+                    <div class="repo-explorer-actions">
+                        <a class="repo-detail-link" href="@DetailUrl(repo.Name)">Inspect repository →</a>
+                        <a href="@repo.HtmlUrl" target="_blank" rel="noopener">GitHub ↗</a>
+                    </div>
                 </article>
             }
         </div>
@@ -87,6 +91,7 @@
         finally { loading = false; }
     }
 
+    private string DetailUrl(string name) => $"{NavManager.BaseUri}repositories/{Uri.EscapeDataString(name)}";
     private int GetRank(GitHubRepository repo) => repositories.OrderByDescending(x => x.StargazersCount).ToList().IndexOf(repo) + 1;
     private static string FormatDate(DateTimeOffset? date) => date is null ? "—" : date.Value.ToLocalTime().ToString("yyyy-MM-dd");
 }
