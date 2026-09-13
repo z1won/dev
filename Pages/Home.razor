@@ -1,41 +1,90 @@
 @page "/"
 @layout MainLayout
 @inject GitHubApiClient GitHub
+@inject ApiTelemetry Telemetry
+@inject NavigationManager NavManager
 
 <PageTitle>Dashboard · dev</PageTitle>
 
 <div class="dashboard-commandbar">
-    <div class="command-path"><span>dev</span><b>/</b><strong>dashboard</strong></div>
-    <div class="command-status"><span class="status-dot"></span> LIVE · github.com/@githubUser</div>
+    <div class="command-path"><span>dev</span><b>/</b><strong>dashboard</strong><i>control-room</i></div>
+    <div class="command-status"><span class="status-dot"></span> LIVE · github.com/@githubUser <span class="command-divider">|</span> CLIENT RUNTIME</div>
 </div>
 
-<div class="dashboard-header">
-    <div>
-        <p class="eyebrow">Developer Portal / Overview</p>
-        <h1>GitHub, in one view.</h1>
-        <p class="lead">Live public GitHub telemetry, recent work, and browser-native developer utilities.</p>
+<section class="dashboard-hero">
+    <div class="hero-copy">
+        <p class="eyebrow">Developer OS / Control Room</p>
+        <h1>Build. Observe. Explore.</h1>
+        <p class="lead">A browser-native engineering cockpit for GitHub telemetry, repository intelligence, API health, and interactive computation.</p>
+        <div class="hero-actions">
+            <button class="refresh-button" type="button" @onclick="LoadGitHubAsync" disabled="@loading">@(loading ? "Syncing…" : "Sync GitHub")</button>
+            <a class="hero-link" href="@($"{NavManager.BaseUri}repositories")">Explore repositories →</a>
+        </div>
     </div>
-    <button class="refresh-button" type="button" @onclick="LoadGitHubAsync" disabled="@loading">@(loading ? "Loading..." : "Refresh data")</button>
-</div>
+    <div class="hero-readout">
+        <div class="readout-top"><span>SESSION</span><b>@(loading ? "SYNCING" : "READY")</b></div>
+        <div class="readout-grid">
+            <div><small>PROFILE</small><strong>@(profile?.Login ?? "—")</strong></div>
+            <div><small>REPOS</small><strong>@repositories.Count</strong></div>
+            <div><small>EVENTS</small><strong>@timeline.Count</strong></div>
+            <div><small>REQUESTS</small><strong>@Telemetry.Requests.Count</strong></div>
+        </div>
+        <div class="readout-scan"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+    </div>
+</section>
 
 @if (error is not null)
 {
-    <div class="error-banner" role="alert">GitHub data could not be loaded: @error</div>
+    <div class="error-banner" role="alert">GitHub data could not be fully loaded: @error</div>
 }
 
 <section class="metrics" aria-label="GitHub overview">
-    <article class="metric-card"><div class="metric-icon">◈</div><div><div class="metric-value">@(profile?.PublicRepos.ToString() ?? "—")</div><div class="metric-label">Public repos</div></div><span class="metric-tag">API</span></article>
-    <article class="metric-card"><div class="metric-icon">★</div><div><div class="metric-value">@repositories.Sum(x => x.StargazersCount)</div><div class="metric-label">Stars · sampled repos</div></div><span class="metric-tag">LIVE</span></article>
-    <article class="metric-card"><div class="metric-icon">◌</div><div><div class="metric-value">@(profile?.Followers.ToString() ?? "—")</div><div class="metric-label">Followers</div></div><span class="metric-tag">PROFILE</span></article>
-    <article class="metric-card"><div class="metric-icon">⚡</div><div><div class="metric-value">@timeline.Count</div><div class="metric-label">Recent events</div></div><span class="metric-tag">18 MAX</span></article>
+    <article class="metric-card"><div class="metric-icon">◈</div><div><div class="metric-value">@(profile?.PublicRepos.ToString() ?? "—")</div><div class="metric-label">Public repos</div></div><span class="metric-tag">PROFILE</span></article>
+    <article class="metric-card"><div class="metric-icon">★</div><div><div class="metric-value">@repositories.Sum(x => x.StargazersCount)</div><div class="metric-label">Stars · sampled</div></div><span class="metric-tag">LIVE</span></article>
+    <article class="metric-card"><div class="metric-icon">◌</div><div><div class="metric-value">@(profile?.Followers.ToString() ?? "—")</div><div class="metric-label">Followers</div></div><span class="metric-tag">GITHUB</span></article>
+    <article class="metric-card"><div class="metric-icon">⚡</div><div><div class="metric-value">@timeline.Count</div><div class="metric-label">Recent events</div></div><span class="metric-tag">STREAM</span></article>
+</section>
+
+<section class="section-block control-grid" id="api">
+    <div>
+        <div class="section-heading"><div><p class="section-kicker">01 · API MONITOR</p><h2>Request telemetry</h2></div><span class="section-command">GITHUB REST · @Telemetry.Requests.Count samples</span></div>
+        <div class="api-monitor">
+            @if (Telemetry.Requests.Count == 0)
+            {
+                <div class="api-empty">Waiting for the first API request…</div>
+            }
+            else
+            {
+                @foreach (var request in Telemetry.Requests.Take(7))
+                {
+                    <div class="api-row">
+                        <span class="api-state @(request.Success ? "ok" : "bad")">@(request.Success ? "OK" : "ERR")</span>
+                        <code>@request.Method</code>
+                        <span class="api-endpoint">@request.Endpoint</span>
+                        <span class="api-status">@(request.StatusCode == 0 ? "—" : request.StatusCode.ToString())</span>
+                        <span class="api-time">@request.ElapsedMs ms</span>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+    <div class="health-card">
+        <div class="section-heading"><div><p class="section-kicker">RUNTIME HEALTH</p><h2>System pulse</h2></div></div>
+        <div class="health-score"><strong>@(Telemetry.Requests.Count(x => x.Success))</strong><span>/ @Telemetry.Requests.Count<br />successful requests</span></div>
+        <div class="health-bars">
+            <div><span>API reliability</span><b style="width:@HealthPercent%"></b></div>
+            <div><span>Client execution</span><b style="width:100%"></b></div>
+            <div><span>WASM runtime</span><b style="width:100%"></b></div>
+        </div>
+        <small class="health-note">Telemetry is local to this browser session. No token or backend required.</small>
+    </div>
 </section>
 
 <section class="section-block" id="github">
     <div class="section-heading">
-        <div><p class="section-kicker">01 · LIVE DATA</p><h2>GitHub repositories</h2></div>
+        <div><p class="section-kicker">02 · LIVE DATA</p><h2>Repository surface</h2></div>
         <span class="section-command">GET /users/@githubUser/repos</span>
     </div>
-
     @if (profile is not null)
     {
         <div class="profile-card">
@@ -44,7 +93,6 @@
             <a href="@profile.HtmlUrl" target="_blank" rel="noopener">Open profile ↗</a>
         </div>
     }
-
     <div class="repo-grid">
         @if (loading && repositories.Count == 0)
         {
@@ -62,10 +110,7 @@
                     <div class="repo-heading"><h3>@repo.Name</h3><span>@(repo.Language ?? "Code")</span></div>
                     <p>@(repo.Description ?? "No description")</p>
                     <div class="repo-meta"><span>★ @repo.StargazersCount</span><span>⑂ @repo.ForksCount</span><span>Updated @FormatDate(repo.UpdatedAt)</span></div>
-                    @if (repo.HtmlUrl is not null)
-                    {
-                        <a href="@repo.HtmlUrl" target="_blank" rel="noopener">Repository ↗</a>
-                    }
+                    @if (repo.HtmlUrl is not null) { <a href="@repo.HtmlUrl" target="_blank" rel="noopener">Repository ↗</a> }
                 </article>
             }
         }
@@ -73,38 +118,18 @@
 </section>
 
 <section class="section-block" id="activity">
-    <div class="section-heading">
-        <div><p class="section-kicker">02 · EVENT STREAM</p><h2>Activity timeline</h2></div>
-        <span class="section-command">@timeline.Count events · @activityRepoCount repos</span>
-    </div>
-
-    <div class="activity-summary">
-        <span><b>@commits.Count</b> commits</span>
-        <span><b>@pullRequests.Count</b> pull requests</span>
-        <span><b>@issues.Count</b> issues</span>
-        <span class="activity-scope">Latest activity across sampled repositories</span>
-    </div>
-
+    <div class="section-heading"><div><p class="section-kicker">03 · EVENT STREAM</p><h2>Activity timeline</h2></div><span class="section-command">@timeline.Count events · @activityRepoCount repos</span></div>
+    <div class="activity-summary"><span><b>@commits.Count</b> commits</span><span><b>@pullRequests.Count</b> pull requests</span><span><b>@issues.Count</b> issues</span><span class="activity-scope">Latest activity across sampled repositories</span></div>
     <div class="timeline-card">
-        @if (loading && timeline.Count == 0)
-        {
-            <p class="activity-empty">Loading activity…</p>
-        }
-        else if (timeline.Count == 0)
-        {
-            <p class="activity-empty">No recent activity found.</p>
-        }
+        @if (loading && timeline.Count == 0) { <p class="activity-empty">Loading activity…</p> }
+        else if (timeline.Count == 0) { <p class="activity-empty">No recent activity found.</p> }
         else
         {
             @foreach (var item in timeline)
             {
                 <a class="timeline-item" href="@item.Url" target="_blank" rel="noopener">
                     <span class="timeline-marker @item.TypeClass">@item.Icon</span>
-                    <span class="timeline-content">
-                        <span class="timeline-topline"><b class="activity-type">@item.Type</b><span class="activity-repo">@item.Repository</span><time>@FormatRelative(item.Date)</time></span>
-                        <strong>@item.Title</strong>
-                        <small>@item.Detail</small>
-                    </span>
+                    <span class="timeline-content"><span class="timeline-topline"><b class="activity-type">@item.Type</b><span class="activity-repo">@item.Repository</span><time>@FormatRelative(item.Date)</time></span><strong>@item.Title</strong><small>@item.Detail</small></span>
                     <span class="timeline-arrow">↗</span>
                 </a>
             }
@@ -113,32 +138,23 @@
 </section>
 
 <section class="section-block" id="tools">
-    <div class="section-heading"><div><p class="section-kicker">03 · TOOLCHAIN</p><h2>Developer Tools</h2></div><a class="section-command section-link" href="tools">OPEN /tools ↗</a></div>
-    <div class="tool-grid">
-        @foreach (var tool in dashboardTools)
-        {
-            <a class="dashboard-tool-link" href="tools"><div class="tool-card"><span>@tool.Name</span><small>@tool.Description</small></div></a>
-        }
-    </div>
+    <div class="section-heading"><div><p class="section-kicker">04 · TOOLCHAIN</p><h2>Developer Tools</h2></div><a class="section-command section-link" href="@($"{NavManager.BaseUri}tools")">OPEN /tools ↗</a></div>
+    <div class="tool-grid">@foreach (var tool in dashboardTools) { <a class="dashboard-tool-link" href="@($"{NavManager.BaseUri}tools")"><div class="tool-card"><span>@tool.Name</span><small>@tool.Description</small></div></a> }</div>
 </section>
 
 <section class="section-block split-section" id="visualization">
-    <div><p class="section-kicker">04 · ANALYTICS</p><h2>GitHub Visualization</h2><p>Repository reach, technology footprint, update recency, and sampled commit activity in a dense analytics view.</p><a class="inline-route" href="visualization">Open visualization ↗</a></div>
+    <div><p class="section-kicker">05 · ANALYTICS</p><h2>GitHub Visualization</h2><p>Repository reach, technology footprint, update recency, and sampled commit activity in a dense analytics view.</p><a class="inline-route" href="@($"{NavManager.BaseUri}visualization")">Open visualization ↗</a></div>
     <div class="terminal-card"><div class="terminal-top"><span></span><span></span><span></span></div><code>github.api<span> → </span>connected</code><div class="terminal-line">GET /users/@githubUser/repos</div><div class="terminal-line">GET /repos/{owner}/{repo}/commits</div><div class="terminal-line">STATUS <span class="terminal-ok">200 OK</span></div></div>
 </section>
 
 <section class="section-block split-section" id="playground">
-    <div><p class="section-kicker">05 · EXPERIMENTS</p><h2>Algorithm Playground</h2><p>Interactive sorting, searching, graph traversal, and execution telemetry built directly in Blazor WebAssembly.</p><a class="inline-route" href="playground">Open playground ↗</a></div>
-    <div class="roadmap"><div><strong>01</strong><span>Foundation</span><em>done</em></div><div><strong>02</strong><span>Portal UI</span><em>done</em></div><div><strong>03</strong><span>GitHub API</span><em>done</em></div><div><strong>04</strong><span>Activity timeline</span><em>done</em></div><div><strong>05</strong><span>Dense UI + Developer Tools</span><em>done</em></div><div><strong>06</strong><span>Playground + Analytics</span><em>current</em></div></div>
+    <div><p class="section-kicker">06 · LABS</p><h2>Algorithm Playground</h2><p>Interactive sorting, searching, graph traversal, and execution telemetry built directly in Blazor WebAssembly.</p><a class="inline-route" href="@($"{NavManager.BaseUri}playground")">Open playground ↗</a></div>
+    <div class="roadmap"><div><strong>01</strong><span>Foundation</span><em>done</em></div><div><strong>02</strong><span>Portal OS shell</span><em>done</em></div><div><strong>03</strong><span>GitHub live data</span><em>done</em></div><div><strong>04</strong><span>Commit intelligence</span><em>done</em></div><div><strong>05</strong><span>API observability</span><em>new</em></div><div><strong>06</strong><span>Interactive engineering labs</span><em>live</em></div></div>
 </section>
 
 @code {
     private const string githubUser = "z1won";
-    private readonly (string Name, string Description)[] dashboardTools =
-    [
-        ("JSON", "Format & validate"), ("JWT", "Decode tokens"), ("REGEX", "Test patterns"),
-        ("DIFF", "Compare text"), ("BASE64", "Encode & decode"), ("UUID", "Generate IDs")
-    ];
+    private readonly (string Name, string Description)[] dashboardTools = [("JSON", "Format & validate"), ("JWT", "Decode tokens"), ("REGEX", "Test patterns"), ("DIFF", "Compare text"), ("BASE64", "Encode & decode"), ("UUID", "Generate IDs")];
     private GitHubProfile? profile;
     private IReadOnlyList<GitHubRepository> repositories = [];
     private IReadOnlyList<GitHubCommit> commits = [];
@@ -148,39 +164,25 @@
     private bool loading;
     private string? error;
     private int activityRepoCount;
+    private int HealthPercent => Telemetry.Requests.Count == 0 ? 100 : (int)Math.Round(Telemetry.Requests.Count(x => x.Success) * 100d / Telemetry.Requests.Count);
 
     protected override async Task OnInitializedAsync() => await LoadGitHubAsync();
 
     private async Task LoadGitHubAsync()
     {
-        loading = true;
-        error = null;
+        loading = true; error = null;
         try
         {
             profile = await GitHub.GetProfileAsync(githubUser);
             repositories = (await GitHub.GetRepositoriesAsync(githubUser, 12)).Where(x => !x.Fork).ToList();
-            var activityRepos = repositories.Take(4).ToList();
-            activityRepoCount = activityRepos.Count;
+            var activityRepos = repositories.Take(4).ToList(); activityRepoCount = activityRepos.Count;
             var commitTasks = activityRepos.Select(repo => GitHub.GetCommitsAsync(githubUser, repo.Name, 3)).ToArray();
             var pullTasks = activityRepos.Select(repo => GitHub.GetPullRequestsAsync(githubUser, repo.Name, 3)).ToArray();
             var issueTasks = activityRepos.Select(repo => GitHub.GetIssuesAsync(githubUser, repo.Name, 3)).ToArray();
-            var commitResults = await Task.WhenAll(commitTasks);
-            var pullResults = await Task.WhenAll(pullTasks);
-            var issueResults = await Task.WhenAll(issueTasks);
-
-            var commitItems = commitResults.SelectMany((items, repoIndex) => items.Select(item => new ActivityEvent(
-                "Commit", "commit", "●", activityRepos[repoIndex].Name, Shorten(item.Commit?.Message),
-                $"{item.Author?.Login ?? "GitHub user"} · {FormatDate(item.Commit?.Author?.Date)}",
-                item.Commit?.Author?.Date, item.HtmlUrl))).ToList();
-            var pullItems = pullResults.SelectMany((items, repoIndex) => items.Select(item => new ActivityEvent(
-                "Pull request", "pull", "↗", activityRepos[repoIndex].Name, $"#{item.Number} · {item.Title}",
-                $"{item.State}{(item.Draft ? " · draft" : "")} · {FormatDate(item.UpdatedAt)}",
-                item.UpdatedAt, item.HtmlUrl))).ToList();
-            var issueItems = issueResults.SelectMany((items, repoIndex) => items.Where(item => item.PullRequest is null).Select(item => new ActivityEvent(
-                "Issue", "issue", "#", activityRepos[repoIndex].Name, $"#{item.Number} · {item.Title}",
-                $"{item.State} · {FormatDate(item.UpdatedAt)}",
-                item.UpdatedAt, item.HtmlUrl))).ToList();
-
+            var commitResults = await Task.WhenAll(commitTasks); var pullResults = await Task.WhenAll(pullTasks); var issueResults = await Task.WhenAll(issueTasks);
+            var commitItems = commitResults.SelectMany((items, i) => items.Select(item => new ActivityEvent("Commit", "commit", "●", activityRepos[i].Name, Shorten(item.Commit?.Message), $"{item.Author?.Login ?? "GitHub user"} · {FormatDate(item.Commit?.Author?.Date)}", item.Commit?.Author?.Date, item.HtmlUrl))).ToList();
+            var pullItems = pullResults.SelectMany((items, i) => items.Select(item => new ActivityEvent("Pull request", "pull", "↗", activityRepos[i].Name, $"#{item.Number} · {item.Title}", $"{item.State}{(item.Draft ? " · draft" : "")} · {FormatDate(item.UpdatedAt)}", item.UpdatedAt, item.HtmlUrl))).ToList();
+            var issueItems = issueResults.SelectMany((items, i) => items.Where(item => item.PullRequest is null).Select(item => new ActivityEvent("Issue", "issue", "#", activityRepos[i].Name, $"#{item.Number} · {item.Title}", $"{item.State} · {FormatDate(item.UpdatedAt)}", item.UpdatedAt, item.HtmlUrl))).ToList();
             commits = commitResults.SelectMany(x => x).OrderByDescending(x => x.Commit?.Author?.Date).Take(8).ToList();
             pullRequests = pullResults.SelectMany(x => x).OrderByDescending(x => x.UpdatedAt).Take(6).ToList();
             issues = issueResults.SelectMany(x => x).Where(x => x.PullRequest is null).OrderByDescending(x => x.UpdatedAt).Take(6).ToList();
@@ -193,18 +195,9 @@
     private static string FormatDate(DateTimeOffset? date) => date is null ? "—" : date.Value.ToLocalTime().ToString("yyyy-MM-dd");
     private static string FormatRelative(DateTimeOffset? date)
     {
-        if (date is null) return "—";
-        var age = DateTimeOffset.UtcNow - date.Value.ToUniversalTime();
-        if (age.TotalMinutes < 1) return "just now";
-        if (age.TotalHours < 1) return $"{Math.Max(1, (int)age.TotalMinutes)}m ago";
-        if (age.TotalDays < 1) return $"{Math.Max(1, (int)age.TotalHours)}h ago";
-        if (age.TotalDays < 7) return $"{Math.Max(1, (int)age.TotalDays)}d ago";
-        return date.Value.ToLocalTime().ToString("MMM d");
+        if (date is null) return "—"; var age = DateTimeOffset.UtcNow - date.Value.ToUniversalTime();
+        if (age.TotalMinutes < 1) return "just now"; if (age.TotalHours < 1) return $"{Math.Max(1, (int)age.TotalMinutes)}m ago"; if (age.TotalDays < 1) return $"{Math.Max(1, (int)age.TotalHours)}h ago"; if (age.TotalDays < 7) return $"{Math.Max(1, (int)age.TotalDays)}d ago"; return date.Value.ToLocalTime().ToString("MMM d");
     }
-    private static string Shorten(string? message)
-    {
-        var firstLine = message?.Split('\n', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "No commit message";
-        return firstLine.Length > 78 ? firstLine[..75] + "..." : firstLine;
-    }
+    private static string Shorten(string? message) { var firstLine = message?.Split('\n', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "No commit message"; return firstLine.Length > 78 ? firstLine[..75] + "..." : firstLine; }
     private sealed record ActivityEvent(string Type, string TypeClass, string Icon, string Repository, string Title, string Detail, DateTimeOffset? Date, string? Url);
 }
