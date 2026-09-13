@@ -4,11 +4,16 @@
 
 <PageTitle>Dashboard · dev</PageTitle>
 
+<div class="dashboard-commandbar">
+    <div class="command-path"><span>dev</span><b>/</b><strong>dashboard</strong></div>
+    <div class="command-status"><span class="status-dot"></span> LIVE · github.com/@githubUser</div>
+</div>
+
 <div class="dashboard-header">
     <div>
-        <p class="eyebrow">Developer Portal</p>
+        <p class="eyebrow">Developer Portal / Overview</p>
         <h1>GitHub, in one view.</h1>
-        <p class="lead">Live public GitHub insights powered directly from the browser with .NET 10 and Blazor WebAssembly.</p>
+        <p class="lead">Live public GitHub telemetry, recent work, and browser-native developer utilities.</p>
     </div>
     <button class="refresh-button" type="button" @onclick="LoadGitHubAsync" disabled="@loading">@(loading ? "Loading..." : "Refresh data")</button>
 </div>
@@ -19,16 +24,16 @@
 }
 
 <section class="metrics" aria-label="GitHub overview">
-    <article class="metric-card"><div class="metric-icon">◈</div><div><div class="metric-value">@(profile?.PublicRepos.ToString() ?? "—")</div><div class="metric-label">Public repositories</div></div></article>
-    <article class="metric-card"><div class="metric-icon">★</div><div><div class="metric-value">@repositories.Sum(x => x.StargazersCount)</div><div class="metric-label">Stars in recent repos</div></div></article>
-    <article class="metric-card"><div class="metric-icon">◌</div><div><div class="metric-value">@(profile?.Followers.ToString() ?? "—")</div><div class="metric-label">Followers</div></div></article>
-    <article class="metric-card"><div class="metric-icon">⚡</div><div><div class="metric-value">@timeline.Count</div><div class="metric-label">Recent activity</div></div></article>
+    <article class="metric-card"><div class="metric-icon">◈</div><div><div class="metric-value">@(profile?.PublicRepos.ToString() ?? "—")</div><div class="metric-label">Public repos</div></div><span class="metric-tag">API</span></article>
+    <article class="metric-card"><div class="metric-icon">★</div><div><div class="metric-value">@repositories.Sum(x => x.StargazersCount)</div><div class="metric-label">Stars · sampled repos</div></div><span class="metric-tag">LIVE</span></article>
+    <article class="metric-card"><div class="metric-icon">◌</div><div><div class="metric-value">@(profile?.Followers.ToString() ?? "—")</div><div class="metric-label">Followers</div></div><span class="metric-tag">PROFILE</span></article>
+    <article class="metric-card"><div class="metric-icon">⚡</div><div><div class="metric-value">@timeline.Count</div><div class="metric-label">Recent events</div></div><span class="metric-tag">18 MAX</span></article>
 </section>
 
 <section class="section-block" id="github">
     <div class="section-heading">
-        <div><p class="section-kicker">01 · Live data</p><h2>GitHub</h2></div>
-        <span class="coming-soon">@githubUser</span>
+        <div><p class="section-kicker">01 · LIVE DATA</p><h2>GitHub repositories</h2></div>
+        <span class="section-command">GET /users/@githubUser/repos</span>
     </div>
 
     @if (profile is not null)
@@ -69,15 +74,15 @@
 
 <section class="section-block" id="activity">
     <div class="section-heading">
-        <div><p class="section-kicker">02 · Recent work</p><h2>Activity timeline</h2></div>
-        <span class="tool-count">@timeline.Count events</span>
+        <div><p class="section-kicker">02 · EVENT STREAM</p><h2>Activity timeline</h2></div>
+        <span class="section-command">@timeline.Count events · @activityRepoCount repos</span>
     </div>
 
     <div class="activity-summary">
         <span><b>@commits.Count</b> commits</span>
         <span><b>@pullRequests.Count</b> pull requests</span>
         <span><b>@issues.Count</b> issues</span>
-        <span class="activity-scope">Latest activity across @activityRepoCount repositories</span>
+        <span class="activity-scope">Latest activity across sampled repositories</span>
     </div>
 
     <div class="timeline-card">
@@ -108,7 +113,7 @@
 </section>
 
 <section class="section-block" id="tools">
-    <div class="section-heading"><div><p class="section-kicker">03 · Utilities</p><h2>Developer Tools</h2></div><a class="tool-count" href="tools">Open tools ↗</a></div>
+    <div class="section-heading"><div><p class="section-kicker">03 · TOOLCHAIN</p><h2>Developer Tools</h2></div><a class="section-command section-link" href="tools">OPEN /tools ↗</a></div>
     <div class="tool-grid">
         @foreach (var tool in dashboardTools)
         {
@@ -118,13 +123,13 @@
 </section>
 
 <section class="section-block split-section" id="visualization">
-    <div><p class="section-kicker">04 · Visualize</p><h2>Interactive visualization</h2><p>Charts, Git graphs, algorithm animations, and WebGL experiments will live here.</p></div>
-    <div class="terminal-card"><div class="terminal-top"><span></span><span></span><span></span></div><code>github.api<span> → </span>connected</code><div class="terminal-line">GET /users/@githubUser/repos</div><div class="terminal-line">GET /repos/{owner}/{repo}/commits</div></div>
+    <div><p class="section-kicker">04 · ANALYTICS</p><h2>GitHub Visualization</h2><p>Repository reach, technology footprint, update recency, and sampled commit activity in a dense analytics view.</p><a class="inline-route" href="visualization">Open visualization ↗</a></div>
+    <div class="terminal-card"><div class="terminal-top"><span></span><span></span><span></span></div><code>github.api<span> → </span>connected</code><div class="terminal-line">GET /users/@githubUser/repos</div><div class="terminal-line">GET /repos/{owner}/{repo}/commits</div><div class="terminal-line">STATUS <span class="terminal-ok">200 OK</span></div></div>
 </section>
 
 <section class="section-block split-section" id="playground">
-    <div><p class="section-kicker">05 · Experiment</p><h2>Playground</h2><p>A safe place for C# snippets, algorithms, WASM demos, and small browser experiments.</p></div>
-    <div class="roadmap"><div><strong>01</strong><span>Foundation</span><em>done</em></div><div><strong>02</strong><span>Portal UI</span><em>done</em></div><div><strong>03</strong><span>GitHub API</span><em>done</em></div><div><strong>04</strong><span>Activity timeline</span><em>done</em></div><div><strong>05</strong><span>Dense UI + Developer Tools</span><em>current</em></div><div><strong>06</strong><span>Playground expansion</span><em>next</em></div></div>
+    <div><p class="section-kicker">05 · EXPERIMENTS</p><h2>Algorithm Playground</h2><p>Interactive sorting, searching, graph traversal, and execution telemetry built directly in Blazor WebAssembly.</p><a class="inline-route" href="playground">Open playground ↗</a></div>
+    <div class="roadmap"><div><strong>01</strong><span>Foundation</span><em>done</em></div><div><strong>02</strong><span>Portal UI</span><em>done</em></div><div><strong>03</strong><span>GitHub API</span><em>done</em></div><div><strong>04</strong><span>Activity timeline</span><em>done</em></div><div><strong>05</strong><span>Dense UI + Developer Tools</span><em>done</em></div><div><strong>06</strong><span>Playground + Analytics</span><em>current</em></div></div>
 </section>
 
 @code {
