@@ -6,12 +6,12 @@
         <div class="nav-group">
             <div class="nav-label">Workspace</div>
             <nav>
-                <NavLink href="" Match="NavLinkMatch.All"><span>⌂</span> Dashboard <kbd>01</kbd></NavLink>
-                <NavLink href="tools"><span>⌘</span> Developer Tools <kbd>02</kbd></NavLink>
-                <NavLink href="visualization"><span>◌</span> Visualization <kbd>03</kbd></NavLink>
-                <NavLink href="playground"><span>▷</span> Playground <kbd>04</kbd></NavLink>
-                <NavLink href="algorithms"><span>λ</span> Algorithms <kbd>05</kbd></NavLink>
-                <NavLink href="repositories"><span>▦</span> Repositories <kbd>06</kbd></NavLink>
+                <a href="@NavManager.BaseUri"><span>⌂</span> Dashboard <kbd>01</kbd></a>
+                <a href="@($"{NavManager.BaseUri}tools")"><span>⌘</span> Developer Tools <kbd>02</kbd></a>
+                <a href="@($"{NavManager.BaseUri}visualization")"><span>◌</span> Visualization <kbd>03</kbd></a>
+                <a href="@($"{NavManager.BaseUri}playground")"><span>▷</span> Playground <kbd>04</kbd></a>
+                <a href="@($"{NavManager.BaseUri}algorithms")"><span>λ</span> Algorithms <kbd>05</kbd></a>
+                <a href="@($"{NavManager.BaseUri}repositories")"><span>▦</span> Repositories <kbd>06</kbd></a>
             </nav>
         </div>
         <div class="nav-group">
@@ -34,13 +34,22 @@
 
 @code {
     [Inject] private NavigationManager NavManager { get; set; } = default!;
-    private string PageName => NavManager.Uri.TrimEnd('/').Split('/').LastOrDefault() switch
+
+    private string PageName
     {
-        "tools" => "tools",
-        "visualization" => "visualization",
-        "playground" => "playground",
-        "algorithms" => "algorithms",
-        "repositories" => "repositories",
-        _ => "dashboard"
-    };
+        get
+        {
+            var relative = NavManager.ToBaseRelativePath(NavManager.Uri).TrimEnd('/');
+            var segment = relative.Split('/', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+            return segment switch
+            {
+                "tools" => "tools",
+                "visualization" => "visualization",
+                "playground" => "playground",
+                "algorithms" => "algorithms",
+                "repositories" => "repositories",
+                _ => "dashboard"
+            };
+        }
+    }
 }
