@@ -31,6 +31,9 @@ public sealed class GitHubApiClient(HttpClient httpClient)
     public async Task<IReadOnlyList<GitHubCommit>> GetCommitsAsync(string owner, string repository, int perPage = 5, CancellationToken cancellationToken = default)
         => await httpClient.GetFromJsonAsync<List<GitHubCommit>>($"https://api.github.com/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repository)}/commits?per_page={Math.Clamp(perPage, 1, 20)}", cancellationToken) ?? [];
 
+    public async Task<GitHubCommitDetail?> GetCommitAsync(string owner, string repository, string sha, CancellationToken cancellationToken = default)
+        => await httpClient.GetFromJsonAsync<GitHubCommitDetail>($"https://api.github.com/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repository)}/commits/{Uri.EscapeDataString(sha)}", cancellationToken);
+
     public async Task<IReadOnlyList<GitHubPullRequest>> GetPullRequestsAsync(string owner, string repository, int perPage = 5, CancellationToken cancellationToken = default)
         => await httpClient.GetFromJsonAsync<List<GitHubPullRequest>>($"https://api.github.com/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repository)}/pulls?state=all&sort=updated&direction=desc&per_page={Math.Clamp(perPage, 1, 20)}", cancellationToken) ?? [];
 
@@ -47,6 +50,9 @@ public sealed record GitHubReadme(string? Name, string? Path, string? HtmlUrl, s
 public sealed record GitHubCommit(string Sha, GitHubCommitDetails? Commit, GitHubUser? Author, string? HtmlUrl);
 public sealed record GitHubCommitDetails(GitHubCommitAuthor? Author, string? Message);
 public sealed record GitHubCommitAuthor(string? Name, DateTimeOffset? Date);
+public sealed record GitHubCommitDetail(string Sha, GitHubCommitDetails? Commit, GitHubUser? Author, string? HtmlUrl, GitHubCommitStats? Stats, IReadOnlyList<GitHubCommitFile>? Files);
+public sealed record GitHubCommitStats(int Additions, int Deletions, int Total);
+public sealed record GitHubCommitFile(string? Filename, string? Status, int Additions, int Deletions, int Changes, string? BlobUrl, string? RawUrl, string? Patch);
 public sealed record GitHubUser(string? Login, string? AvatarUrl, string? HtmlUrl);
 public sealed record GitHubPullRequest(int Number, string? Title, string? HtmlUrl, string? State, bool Draft, DateTimeOffset? UpdatedAt, GitHubUser? User);
 public sealed record GitHubIssue(int Number, string? Title, string? HtmlUrl, string? State, DateTimeOffset? UpdatedAt, GitHubUser? User, GitHubPullRequestLink? PullRequest);
