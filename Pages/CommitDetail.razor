@@ -109,10 +109,47 @@ else if (commit is not null)
         </div>
     </section>
 
+    @if (commit.Parents is { Count: > 0 })
+    {
+        <section class="repository-panel compare-panel">
+            <div class="repository-panel-head"><span>COMMIT INTELLIGENCE / COMPARE</span><small>BASE → HEAD</small></div>
+            <div class="compare-toolbar">
+                <div><span>BASE</span><strong>@ShortSha(selectedParentSha)</strong></div>
+                <button type="button" class="refresh-button" @onclick="CompareWithParentAsync" disabled="@compareLoading">@(compareLoading ? "Comparing…" : "Compare parent → current")</button>
+            </div>
+            @if (compareError is not null)
+            {
+                <div class="repository-empty">@compareError</div>
+            }
+            else if (comparison is not null)
+            {
+                <div class="compare-metrics">
+                    <div><span>STATUS</span><strong>@comparison.Status.ToUpperInvariant()</strong></div>
+                    <div><span>COMMITS</span><strong>@comparison.TotalCommits</strong></div>
+                    <div><span>FILES</span><strong>@(comparison.Files?.Count ?? 0)</strong></div>
+                    <div><span>AHEAD</span><strong>+@comparison.AheadBy</strong></div>
+                </div>
+                @if (comparison.Files is { Count: > 0 })
+                {
+                    <div class="compare-files">
+                        @foreach (var file in comparison.Files)
+                        {
+                            <div class="compare-file"><span>@(file.Status ?? "M")</span><strong>@(file.Filename ?? "unknown")</strong><small>+@file.Additions -@file.Deletions</small></div>
+                        }
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="compare-empty">Select the immediate parent and run a comparison to inspect the complete commit delta.</div>
+            }
+        </section>
+    }
+
     <section class="code-insight-strip">
         <div><span>CHANGESET</span><strong>@(commit.Stats?.Total ?? 0) lines</strong><small>total additions + deletions</small></div>
         <div><span>FOCUS</span><strong>@SelectedFilename()</strong><small>selected changed file</small></div>
-        <div><span>SNAPSHOT</span><strong>COMMIT-PINNED</strong><small>source resolved against @ShortSha()</small></div>
+        <div><span>GRAPH</span><strong>@(commit.Parents?.Count ?? 0) PARENT(S)</strong><small>commit ancestry available</small></div>
     </section>
 }
 
@@ -122,21 +159,26 @@ else if (commit is not null)
 
     private GitHubCommitDetail? commit;
     private GitHubFileContent? source;
+    private GitHubCompareResult? comparison;
     private bool loading;
     private bool sourceLoading;
+    private bool compareLoading;
     private string? error;
     private string? sourceError;
+    private string? compareError;
     private int selectedFileIndex;
     private string activeView = "diff";
+    private string? selectedParentSha;
 
     protected override async Task OnParametersSetAsync() => await LoadAsync();
 
     private async Task LoadAsync()
     {
-        loading = true; error = null; source = null; sourceError = null; selectedFileIndex = 0; activeView = "diff";
+        loading = true; error = null; source = null; comparison = null; sourceError = null; compareError = null; selectedFileIndex = 0; activeView = "diff"; selectedParentSha = null;
         try
         {
             commit = await GitHub.GetCommitAsync("z1won", RepositoryName, Sha);
+            selectedParentSha = commit?.Parents?.FirstOrDefault()?.Sha;
             if (commit is null) error = "Commit was not found.";
         }
         catch (Exception ex) { error = ex.Message; }
@@ -169,9 +211,23 @@ else if (commit is not null)
         finally { sourceLoading = false; }
     }
 
+    private async Task CompareWithParentAsync()
+    {
+        if (string.IsNullOrWhiteSpace(selectedParentSha)) return;
+        compareLoading = true; compareError = null; comparison = null;
+        try
+        {
+            comparison = await GitHub.CompareCommitsAsync("z1won", RepositoryName, selectedParentSha, Sha);
+            if (comparison is null) compareError = "GitHub returned no comparison data.";
+        }
+        catch (Exception ex) { compareError = ex.Message; }
+        finally { compareLoading = false; }
+    }
+
     private GitHubCommitFile? SelectedFile() => commit?.Files is { Count: > 0 } files && selectedFileIndex < files.Count ? files[selectedFileIndex] : null;
     private string SelectedFilename() => SelectedFile()?.Filename ?? "No file selected";
-    private string ShortSha() => string.IsNullOrWhiteSpace(Sha) ? "unknown" : Sha[..Math.Min(10, Sha.Length)];
+    private static string ShortSha(string? sha) => string.IsNullOrWhiteSpace(sha) ? "unknown" : sha[..Math.Min(10, sha.Length)];
+    private string ShortSha() => ShortSha(Sha);
     private string RepositoryUrl() => $"{NavManager.BaseUri}repositories/{Uri.EscapeDataString(RepositoryName)}";
     private static string ShortMessage(string? message){var firstLine=message?.Split('\n',StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()?.Trim();return string.IsNullOrWhiteSpace(firstLine)?"Untitled commit":firstLine;}
     private static string FormatDate(DateTimeOffset? date) => date is null ? "—" : date.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
