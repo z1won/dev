@@ -68,9 +68,10 @@ else if (repository is not null)
                 <div class="repository-panel-head"><span>PULL REQUESTS</span><small>@pullRequests.Count</small></div>
                 @foreach (var pullRequest in pullRequests)
                 {
-                    <a class="repository-event" href="@pullRequest.HtmlUrl" target="_blank" rel="noopener">
+                    <a class="repository-event repository-pr-event" href="@PrUrl(pullRequest.Number)">
                         <span class="event-code">#@pullRequest.Number</span>
-                        <span class="event-copy"><b>@(pullRequest.Title ?? "Untitled pull request")</b><small>@(pullRequest.State ?? "unknown") · @FormatDate(pullRequest.UpdatedAt)</small></span>
+                        <span class="event-copy"><b>@(pullRequest.Title ?? "Untitled pull request")</b><small>@StatusLabel(pullRequest) · @FormatDate(pullRequest.UpdatedAt)</small></span>
+                        <span class="pr-intel-arrow">PR INTEL ↗</span>
                     </a>
                 }
                 @if (pullRequests.Count == 0) { <div class="repository-empty">No recent pull requests.</div> }
@@ -136,6 +137,9 @@ else if (repository is not null)
     }
 
     private string CommitUrl(string sha) => $"{NavManager.BaseUri}repositories/{Uri.EscapeDataString(RepositoryName)}/commits/{Uri.EscapeDataString(sha)}";
+    private string PrUrl(int number) => $"{NavManager.BaseUri}repositories/{Uri.EscapeDataString(RepositoryName)}/pulls/{number}";
+
+    private static string StatusLabel(GitHubPullRequest pullRequest) => pullRequest.Draft ? "draft" : pullRequest.State ?? "unknown";
 
     private static string ShortMessage(string? message)
     {
