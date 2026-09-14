@@ -74,21 +74,45 @@ else if (commit is not null)
             <div class="repository-panel code-diff-panel">
                 <div class="code-diff-head">
                     <div>
-                        <span class="eyebrow">DIFF VIEW</span>
+                        <span class="eyebrow">FILE / @activeView.ToUpperInvariant()</span>
                         <strong>@SelectedFilename()</strong>
+                    </div>
+                    <div class="code-view-tabs">
+                        <button type="button" class="@(activeView == "diff" ? "active" : "")" @onclick="() => SetView("diff")">DIFF</button>
+                        <button type="button" class="@(activeView == "source" ? "active" : "")" @onclick="() => SetView("source")">SOURCE</button>
                     </div>
                     <div class="code-diff-meta">
                         <span>+@(SelectedFile()?.Additions ?? 0)</span>
                         <span>-@(SelectedFile()?.Deletions ?? 0)</span>
                     </div>
                 </div>
-                @if (!string.IsNullOrWhiteSpace(SelectedFile()?.Patch))
+                @if (activeView == "diff")
                 {
-                    <pre class="intelligence-diff">@SelectedFile()!.Patch</pre>
+                    @if (!string.IsNullOrWhiteSpace(SelectedFile()?.Patch))
+                    {
+                        <pre class="intelligence-diff">@SelectedFile()!.Patch</pre>
+                    }
+                    else
+                    {
+                        <div class="repository-empty">GitHub did not return a patch for this file.</div>
+                    }
+                }
+                else if (sourceLoading)
+                {
+                    <div class="repository-empty">Loading file snapshot at this commit…</div>
+                }
+                else if (sourceError is not null)
+                {
+                    <div class="repository-empty">@sourceError</div>
+                }
+                else if (!string.IsNullOrWhiteSpace(source?.DecodedContent))
+                {
+                    <div class="source-meta"><span>SNAPSHOT</span><span>@(source?.Path ?? SelectedFilename())</span><span>REF @ShortSha()</span></div>
+                    <pre class="intelligence-source">@source!.DecodedContent</pre>
                 }
                 else
                 {
-                    <div class="repository-empty">GitHub did not return a patch for this file.</div>
+                    <div class="repository-empty">Source content is unavailable for this file.</div>
                 }
             </div>
         </div>
@@ -97,7 +121,7 @@ else if (commit is not null)
     <section class="code-insight-strip">
         <div><span>CHANGESET</span><strong>@(commit.Stats?.Total ?? 0) lines</strong><small>total additions + deletions</small></div>
         <div><span>FOCUS</span><strong>@SelectedFilename()</strong><small>selected changed file</small></div>
-        <div><span>WORKSPACE</span><strong>CLIENT / WASM</strong><small>diff rendered locally</small></div>
+        <div><span>SNAPSHOT</span><strong>COMMIT-PINNED</strong><small>source resolved against @ShortSha()</small></div>
     </section>
 }
 
@@ -106,9 +130,13 @@ else if (commit is not null)
     [Parameter] public string Sha { get; set; } = string.Empty;
 
     private GitHubCommitDetail? commit;
+    private GitHubFileContent? source;
     private bool loading;
+    private bool sourceLoading;
     private string? error;
+    private string? sourceError;
     private int selectedFileIndex;
+    private string activeView = "diff";
 
     protected override async Task OnParametersSetAsync() => await LoadAsync();
 
@@ -116,8 +144,10 @@ else if (commit is not null)
     {
         loading = true;
         error = null;
-        commit = null;
+        source = null;
+        sourceError = null;
         selectedFileIndex = 0;
+        activeView = "diff";
 
         try
         {
@@ -128,7 +158,32 @@ else if (commit is not null)
         finally { loading = false; }
     }
 
-    private void SelectFile(int index) => selectedFileIndex = index;
+    private async Task SelectFile(int index)
+    {
+        selectedFileIndex = index;
+        source = null;
+        sourceError = null;
+        activeView = "diff";
+    }
+
+    private async Task SetView(string view)
+    {
+        activeView = view;
+        if (view != "source" || source is not null || SelectedFile() is null) return;
+
+        sourceLoading = true;
+        sourceError = null;
+        try
+        {
+            var path = SelectedFile()!.Filename;
+            if (string.IsNullOrWhiteSpace(path)) { sourceError = "File path is unavailable."; return; }
+            source = await GitHub.GetFileContentAsync("z1won", RepositoryName, path, Sha);
+            if (source is null || string.IsNullOrWhiteSpace(source.DecodedContent)) sourceError = "GitHub did not return text source for this file.";
+        }
+        catch (Exception ex) { sourceError = ex.Message; }
+        finally { sourceLoading = false; }
+    }
+
     private GitHubCommitFile? SelectedFile() => commit?.Files is { Count: > 0 } files && selectedFileIndex < files.Count ? files[selectedFileIndex] : null;
     private string SelectedFilename() => SelectedFile()?.Filename ?? "No file selected";
     private string ShortSha() => string.IsNullOrWhiteSpace(Sha) ? "unknown" : Sha[..Math.Min(10, Sha.Length)];
