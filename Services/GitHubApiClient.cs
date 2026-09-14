@@ -23,6 +23,7 @@ public sealed class GitHubApiClient(HttpClient httpClient, ApiTelemetry telemetr
     }
     public async Task<IReadOnlyList<GitHubCommit>> GetCommitsAsync(string owner,string repository,int perPage=5,CancellationToken cancellationToken=default)=>await GetJsonAsync<IReadOnlyList<GitHubCommit>>($"/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repository)}/commits?per_page={Math.Clamp(perPage,1,20)}","GET /repos/{owner}/{repo}/commits",cancellationToken)??[];
     public Task<GitHubCommitDetail?> GetCommitAsync(string owner,string repository,string sha,CancellationToken cancellationToken=default)=>GetJsonAsync<GitHubCommitDetail>($"/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repository)}/commits/{Uri.EscapeDataString(sha)}","GET /repos/{owner}/{repo}/commits/{sha}",cancellationToken);
+    public Task<GitHubCompareResult?> CompareCommitsAsync(string owner,string repository,string baseSha,string headSha,CancellationToken cancellationToken=default)=>GetJsonAsync<GitHubCompareResult>($"/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repository)}/compare/{Uri.EscapeDataString(baseSha)}...{Uri.EscapeDataString(headSha)}","GET /repos/{owner}/{repo}/compare",cancellationToken);
     public async Task<IReadOnlyList<GitHubPullRequest>> GetPullRequestsAsync(string owner,string repository,int perPage=5,CancellationToken cancellationToken=default)=>await GetJsonAsync<IReadOnlyList<GitHubPullRequest>>($"/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repository)}/pulls?state=all&sort=updated&direction=desc&per_page={Math.Clamp(perPage,1,20)}","GET /repos/{owner}/{repo}/pulls",cancellationToken)??[];
     public async Task<IReadOnlyList<GitHubIssue>> GetIssuesAsync(string owner,string repository,int perPage=5,CancellationToken cancellationToken=default)=>await GetJsonAsync<IReadOnlyList<GitHubIssue>>($"/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repository)}/issues?state=all&sort=updated&direction=desc&per_page={Math.Clamp(perPage,1,20)}","GET /repos/{owner}/{repo}/issues",cancellationToken)??[];
 
@@ -48,9 +49,11 @@ public sealed record GitHubFileContent(string? Name,string? Path,string? HtmlUrl
 public sealed record GitHubCommit(string Sha,GitHubCommitDetails? Commit,GitHubUser? Author,string? HtmlUrl);
 public sealed record GitHubCommitDetails(GitHubCommitAuthor? Author,string? Message);
 public sealed record GitHubCommitAuthor(string? Name,DateTimeOffset? Date);
-public sealed record GitHubCommitDetail(string Sha,GitHubCommitDetails? Commit,GitHubUser? Author,string? HtmlUrl,GitHubCommitStats? Stats,IReadOnlyList<GitHubCommitFile>? Files);
+public sealed record GitHubCommitDetail(string Sha,GitHubCommitDetails? Commit,GitHubUser? Author,string? HtmlUrl,GitHubCommitStats? Stats,IReadOnlyList<GitHubCommitFile>? Files,IReadOnlyList<GitHubCommitParent>? Parents);
+public sealed record GitHubCommitParent(string Sha,string? HtmlUrl);
 public sealed record GitHubCommitStats(int Additions,int Deletions,int Total);
 public sealed record GitHubCommitFile(string? Filename,string? Status,int Additions,int Deletions,int Changes,string? BlobUrl,string? RawUrl,string? Patch);
+public sealed record GitHubCompareResult(string Status,int AheadBy,int BehindBy,int TotalCommits,IReadOnlyList<GitHubCommit>? Commits,IReadOnlyList<GitHubCommitFile>? Files);
 public sealed record GitHubUser(string? Login,string? AvatarUrl,string? HtmlUrl);
 public sealed record GitHubPullRequest(int Number,string? Title,string? HtmlUrl,string? State,bool Draft,DateTimeOffset? UpdatedAt,GitHubUser? User);
 public sealed record GitHubIssue(int Number,string? Title,string? HtmlUrl,string? State,DateTimeOffset? UpdatedAt,GitHubUser? User,GitHubPullRequestLink? PullRequest);
