@@ -26,16 +26,38 @@ public sealed class GitHubApiClient(HttpClient httpClient, ApiTelemetry telemetr
     public Task<GitHubCompareResult?> CompareCommitsAsync(string owner,string repository,string baseSha,string headSha,CancellationToken cancellationToken=default)=>GetJsonAsync<GitHubCompareResult>($"/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repository)}/compare/{Uri.EscapeDataString(baseSha)}...{Uri.EscapeDataString(headSha)}","GET /repos/{owner}/{repo}/compare",cancellationToken);
     public async Task<IReadOnlyList<GitHubPullRequest>> GetPullRequestsAsync(string owner,string repository,int perPage=5,CancellationToken cancellationToken=default)=>await GetJsonAsync<IReadOnlyList<GitHubPullRequest>>($"/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repository)}/pulls?state=all&sort=updated&direction=desc&per_page={Math.Clamp(perPage,1,20)}","GET /repos/{owner}/{repo}/pulls",cancellationToken)??[];
     public async Task<IReadOnlyList<GitHubIssue>> GetIssuesAsync(string owner,string repository,int perPage=5,CancellationToken cancellationToken=default)=>await GetJsonAsync<IReadOnlyList<GitHubIssue>>($"/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repository)}/issues?state=all&sort=updated&direction=desc&per_page={Math.Clamp(perPage,1,20)}","GET /repos/{owner}/{repo}/issues",cancellationToken)??[];
+    public Task<PullRequestIntelligence?> GetPullRequestIntelligenceAsync(string owner,string repository,int number,CancellationToken cancellationToken=default)=>GetJsonAsync<PullRequestIntelligence>($"/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repository)}/pulls/{number}","GET /repos/{owner}/{repo}/pulls/{number}",cancellationToken);
+    public async Task<IReadOnlyList<string>> GetPullRequestChangedFilesAsync(string owner,string repository,int number,CancellationToken cancellationToken=default)
+    {
+        var files=await GetJsonAsync<IReadOnlyList<GitHubPullRequestFile>>($"/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repository)}/pulls/{number}/files?per_page=100","GET /repos/{owner}/{repo}/pulls/{number}/files",cancellationToken)??[];
+        return files.Select(x=>x.Filename).Where(x=>!string.IsNullOrWhiteSpace(x)).Cast<string>().ToArray();
+    }
+    public Task<IReadOnlyList<PullRequestReviewInfo>> GetPullRequestReviewsAsync(string owner,string repository,int number,CancellationToken cancellationToken=default)=>GetJsonAsync<IReadOnlyList<PullRequestReviewInfo>>($"/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repository)}/pulls/{number}/reviews","GET /repos/{owner}/{repo}/pulls/{number}/reviews",cancellationToken).ContinueWith(t=>t.Result??[],cancellationToken);
+    public async Task<IReadOnlyList<PullRequestThreadInfo>> GetPullRequestThreadsAsync(string owner,string repository,int number,CancellationToken cancellationToken=default)
+    {
+        var threads=await GetJsonAsync<IReadOnlyList<PullRequestThreadInfo>>($"/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repository)}/pulls/{number}/comments","GET /repos/{owner}/{repo}/pulls/{number}/comments",cancellationToken)??[];
+        return threads;
+    }
+    public async Task<string?> GetPullRequestDiffAsync(string owner,string repository,int number,CancellationToken cancellationToken=default)
+    {
+        using var request=new HttpRequestMessage(HttpMethod.Get,$"/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repository)}/pulls/{number}");
+        request.Headers.Accept.Clear(); request.Headers.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/vnd.github.v3.diff"));
+        var stopwatch=Stopwatch.StartNew();
+        try{using var response=await httpClient.SendAsync(request,cancellationToken);stopwatch.Stop();var status=(int)response.StatusCode;if(!response.IsSuccessStatusCode){var message=$"HTTP {status} {response.ReasonPhrase}";telemetry.Record("GET","GET /repos/{owner}/{repo}/pulls/{number}.diff",status,stopwatch.ElapsedMilliseconds,message);throw new HttpRequestException(message);}var text=await response.Content.ReadAsStringAsync(cancellationToken);telemetry.Record("GET","GET /repos/{owner}/{repo}/pulls/{number}.diff",status,stopwatch.ElapsedMilliseconds);return text;}
+        catch(OperationCanceledException) when(!cancellationToken.IsCancellationRequested){stopwatch.Stop();telemetry.Record("GET","GET /repos/{owner}/{repo}/pulls/{number}.diff",408,stopwatch.ElapsedMilliseconds,"Request timed out");throw;}
+    }
+    public Task<string?> GetPullRequestFilePatchAsync(string owner,string repository,int number,string path,CancellationToken cancellationToken=default)=>GetJsonAsync<GitHubPullRequestFilePatch>($"/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repository)}/pulls/{number}/files?per_page=100","GET /repos/{owner}/{repo}/pulls/{number}/files").ContinueWith(t=>t.Result?.PatchFor(path),cancellationToken);
+    public async Task<(string Label,string Detail)> GetCommitStatusAsync(string owner,string repository,string sha,CancellationToken cancellationToken=default)
+    {
+        var status=await GetJsonAsync<GitHubCommitStatus>($"/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repository)}/commits/{Uri.EscapeDataString(sha)}/status","GET /repos/{owner}/{repo}/commits/{sha}/status",cancellationToken);
+        if(status is null)return ("NOT CHECKED","Commit status is not available.");
+        return status.State switch { "success"=>("PASS","All checks passed."), "failure"=>("FAIL","One or more checks failed."), "pending"=>("PENDING","Checks are still running."), _=>(status.State?.ToUpperInvariant()??"UNKNOWN",$"{status.TotalCount} status checks reported.") };
+    }
 
-    private async Task<T?> GetJsonAsync<T>(string endpoint,string telemetryEndpoint,CancellationToken cancellationToken)
+    private async Task<T?> GetJsonAsync<T>(string endpoint,string telemetryEndpoint,CancellationToken cancellationToken=default)
     {
         var stopwatch=Stopwatch.StartNew();
-        try
-        {
-            using var response=await httpClient.GetAsync(endpoint,cancellationToken); stopwatch.Stop(); var status=(int)response.StatusCode;
-            if(!response.IsSuccessStatusCode){var message=$"HTTP {status} {response.ReasonPhrase}";telemetry.Record("GET",telemetryEndpoint,status,stopwatch.ElapsedMilliseconds,message);throw new HttpRequestException(message);}
-            var value=await response.Content.ReadFromJsonAsync<T>(cancellationToken:cancellationToken);telemetry.Record("GET",telemetryEndpoint,status,stopwatch.ElapsedMilliseconds);return value;
-        }
+        try{using var response=await httpClient.GetAsync(endpoint,cancellationToken);stopwatch.Stop();var status=(int)response.StatusCode;if(!response.IsSuccessStatusCode){var message=$"HTTP {status} {response.ReasonPhrase}";telemetry.Record("GET",telemetryEndpoint,status,stopwatch.ElapsedMilliseconds,message);throw new HttpRequestException(message);}var value=await response.Content.ReadFromJsonAsync<T>(cancellationToken:cancellationToken);telemetry.Record("GET",telemetryEndpoint,status,stopwatch.ElapsedMilliseconds);return value;}
         catch(OperationCanceledException) when(!cancellationToken.IsCancellationRequested){stopwatch.Stop();telemetry.Record("GET",telemetryEndpoint,408,stopwatch.ElapsedMilliseconds,"Request timed out");throw;}
         catch(HttpRequestException){throw;}
         catch(System.Text.Json.JsonException ex){stopwatch.Stop();telemetry.Record("GET",telemetryEndpoint,0,stopwatch.ElapsedMilliseconds,ex.Message);throw;}
@@ -58,3 +80,10 @@ public sealed record GitHubUser(string? Login,string? AvatarUrl,string? HtmlUrl)
 public sealed record GitHubPullRequest(int Number,string? Title,string? HtmlUrl,string? State,bool Draft,DateTimeOffset? UpdatedAt,GitHubUser? User);
 public sealed record GitHubIssue(int Number,string? Title,string? HtmlUrl,string? State,DateTimeOffset? UpdatedAt,GitHubUser? User,GitHubPullRequestLink? PullRequest);
 public sealed record GitHubPullRequestLink(string? Url);
+public sealed record PullRequestIntelligence(int Number,string? Title,string? Body,string? HtmlUrl,string State,bool Draft,string HeadRef,string BaseRef,string HeadSha,int Additions,int Deletions);
+public sealed record GitHubPullRequestFile(string? Filename,string? Status,int Additions,int Deletions,int Changes,string? Patch);
+public sealed record PullRequestReviewInfo(string? UserLogin,string? State,string? Body,GitHubUserInfo? User);
+public sealed record PullRequestThreadInfo(string? Body,string? Path,int? Line,bool IsResolved);
+public sealed record GitHubUserInfo(string? Login);
+public sealed record GitHubPullRequestFilePatch(IReadOnlyList<GitHubPullRequestFile>? Files){public string? PatchFor(string path)=>Files?.FirstOrDefault(x=>string.Equals(x.Filename,path,StringComparison.Ordinal))?.Patch;}
+public sealed record GitHubCommitStatus(string? State,int TotalCount);
