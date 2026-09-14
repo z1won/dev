@@ -34,26 +34,27 @@ else if (pullRequest is not null)
     <section class="repository-kpis pr-kpis">
         <div><span>STATUS</span><strong>@StatusLabel</strong></div>
         <div><span>BRANCH</span><strong>@pullRequest.HeadRef → @pullRequest.BaseRef</strong></div>
-        <div><span>FILES</span><strong>@changedFiles.Count</strong></div>
+        <div><span>FILES</span><strong>@files.Count</strong></div>
         <div><span>HEAD</span><strong>@ShortSha(pullRequest.HeadSha)</strong></div>
     </section>
 
     <section class="pr-intelligence-grid">
         <aside class="repository-panel pr-files-panel">
-            <div class="repository-panel-head"><span>CHANGED FILES</span><small>@changedFiles.Count</small></div>
-            @foreach (var file in changedFiles)
+            <div class="repository-panel-head"><span>CHANGED FILES</span><small>@files.Count</small></div>
+            @foreach (var file in files)
             {
-                <button class="pr-file-node @(selectedFile == file ? "active" : "")" @onclick="() => SelectFileAsync(file)">
-                    <span class="file-status">@FileStatus(file)</span>
-                    <span class="file-path">@file</span>
+                <button class="pr-file-node @(selectedFile == file.Filename ? "active" : "")" @onclick="() => SelectFileAsync(file.Filename ?? string.Empty)">
+                    <span class="file-status">@(file.Status ?? "FILE")</span>
+                    <span class="file-path">@file.Filename</span>
+                    <span class="file-delta">+@file.Additions / -@file.Deletions</span>
                 </button>
             }
-            @if (changedFiles.Count == 0) { <div class="repository-empty">No changed files.</div> }
+            @if (files.Count == 0) { <div class="repository-empty">No changed files.</div> }
         </aside>
 
         <div class="pr-main-stack">
             <section class="repository-panel">
-                <div class="repository-panel-head"><span>DIFF</span><small>@(selectedFile ?? "all files")</small></div>
+                <div class="repository-panel-head"><span>DIFF REVIEW</span><small>@(selectedFile ?? "all files")</small></div>
                 @if (selectedFile is not null && filePatchLoading)
                 {
                     <div class="repository-empty">Loading file patch…</div>
@@ -76,27 +77,32 @@ else if (pullRequest is not null)
                 <div><span>ADDITIONS</span><strong>+@additions</strong></div>
                 <div><span>DELETIONS</span><strong>-@deletions</strong></div>
                 <div><span>REVIEWS</span><strong>@reviews.Count</strong></div>
-                <div><span>THREADS</span><strong>@threads.Count</strong></div>
+                <div><span>UNRESOLVED</span><strong>@threads.Count(x => !x.IsResolved)</strong></div>
             </section>
 
             <section class="repository-panel">
-                <div class="repository-panel-head"><span>REVIEW INTELLIGENCE</span><small>@reviews.Count reviews · @threads.Count threads</small></div>
-                @foreach (var review in reviews)
-                {
-                    <div class="pr-review">
-                        <div><strong>@(review.User?.Login ?? "unknown")</strong><span>@(review.State ?? "COMMENTED")</span></div>
-                        <p>@(review.Body ?? "No review body.")</p>
-                    </div>
-                }
+                <div class="repository-panel-head"><span>REVIEW INTELLIGENCE</span><small>line-level context</small></div>
                 @foreach (var thread in threads)
                 {
                     <div class="pr-thread @(thread.IsResolved ? "resolved" : "")">
-                        <div><span>INLINE THREAD</span><strong>@(thread.IsResolved ? "RESOLVED" : "UNRESOLVED")</strong></div>
+                        <div class="pr-thread-head"><span>INLINE THREAD</span><strong>@(thread.IsResolved ? "RESOLVED" : "UNRESOLVED")</strong></div>
                         <p>@thread.Body</p>
                         @if (!string.IsNullOrWhiteSpace(thread.Path)) { <small>@thread.Path@(thread.Line is null ? "" : $":{thread.Line}")</small> }
                     </div>
                 }
-                @if (reviews.Count == 0 && threads.Count == 0) { <div class="repository-empty">No review activity.</div> }
+                @if (threads.Count == 0) { <div class="repository-empty">No inline review threads.</div> }
+            </section>
+
+            <section class="repository-panel">
+                <div class="repository-panel-head"><span>REVIEW SUBMISSIONS</span><small>@reviews.Count</small></div>
+                @foreach (var review in reviews)
+                {
+                    <div class="pr-review">
+                        <div><strong>@(review.User?.Login ?? review.UserLogin ?? "unknown")</strong><span>@(review.State ?? "COMMENTED")</span></div>
+                        <p>@(review.Body ?? "No review body.")</p>
+                    </div>
+                }
+                @if (reviews.Count == 0) { <div class="repository-empty">No submitted reviews.</div> }
             </section>
 
             <section class="repository-panel">
@@ -112,7 +118,7 @@ else if (pullRequest is not null)
     [Parameter] public int PullRequestNumber { get; set; }
 
     private PullRequestIntelligence? pullRequest;
-    private IReadOnlyList<string> changedFiles = [];
+    private IReadOnlyList<GitHubPullRequestFile> files = [];
     private IReadOnlyList<PullRequestReviewInfo> reviews = [];
     private IReadOnlyList<PullRequestThreadInfo> threads = [];
     private string? prPatch;
@@ -123,7 +129,6 @@ else if (pullRequest is not null)
     private string? error;
     private string ciLabel = "NOT CHECKED";
     private string ciDetail = "Commit status is not available.";
-
     private int additions;
     private int deletions;
 
@@ -131,16 +136,16 @@ else if (pullRequest is not null)
 
     private async Task LoadAsync()
     {
-        loading = true; error = null; pullRequest = null; changedFiles = []; reviews = []; threads = []; prPatch = null; selectedFile = null; filePatch = null; additions = deletions = 0;
+        loading = true; error = null; pullRequest = null; files = []; reviews = []; threads = []; prPatch = null; selectedFile = null; filePatch = null; additions = deletions = 0;
         try
         {
             var prTask = GitHub.GetPullRequestIntelligenceAsync("z1won", RepositoryName, PullRequestNumber);
-            var filesTask = GitHub.GetPullRequestChangedFilesAsync("z1won", RepositoryName, PullRequestNumber);
+            var filesTask = GitHub.GetPullRequestFilesAsync("z1won", RepositoryName, PullRequestNumber);
             var reviewsTask = GitHub.GetPullRequestReviewsAsync("z1won", RepositoryName, PullRequestNumber);
             var threadsTask = GitHub.GetPullRequestThreadsAsync("z1won", RepositoryName, PullRequestNumber);
             var diffTask = GitHub.GetPullRequestDiffAsync("z1won", RepositoryName, PullRequestNumber);
             await Task.WhenAll(prTask, filesTask, reviewsTask, threadsTask, diffTask);
-            pullRequest = await prTask; changedFiles = await filesTask; reviews = await reviewsTask; threads = await threadsTask; prPatch = await diffTask;
+            pullRequest = await prTask; files = await filesTask; reviews = await reviewsTask; threads = await threadsTask; prPatch = await diffTask;
             if (pullRequest is null) { error = "Pull request was not found."; return; }
             additions = pullRequest.Additions; deletions = pullRequest.Deletions;
             var status = await GitHub.GetCommitStatusAsync("z1won", RepositoryName, pullRequest.HeadSha);
@@ -152,6 +157,7 @@ else if (pullRequest is not null)
 
     private async Task SelectFileAsync(string file)
     {
+        if (string.IsNullOrWhiteSpace(file)) return;
         selectedFile = file; filePatch = null; filePatchLoading = true;
         try { filePatch = await GitHub.GetPullRequestFilePatchAsync("z1won", RepositoryName, PullRequestNumber, file); }
         catch (Exception ex) { filePatch = $"// Patch unavailable: {ex.Message}"; }
@@ -160,10 +166,4 @@ else if (pullRequest is not null)
 
     private string StatusLabel => pullRequest?.Draft == true ? "DRAFT" : (pullRequest?.State ?? "UNKNOWN").ToUpperInvariant();
     private static string ShortSha(string sha) => sha[..Math.Min(8, sha.Length)];
-    private static string FileStatus(string path) => path.EndsWith(".razor", StringComparison.OrdinalIgnoreCase) ? "UI" : path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase) ? "CS" : "FILE";
 }
-
-public sealed record PullRequestIntelligence(int Number, string? Title, string? Body, string? HtmlUrl, string State, bool Draft, string HeadRef, string BaseRef, string HeadSha, int Additions, int Deletions);
-public sealed record PullRequestReviewInfo(string? UserLogin, string? State, string? Body, GitHubUserInfo? User);
-public sealed record PullRequestThreadInfo(string? Body, string? Path, int? Line, bool IsResolved);
-public sealed record GitHubUserInfo(string? Login);
