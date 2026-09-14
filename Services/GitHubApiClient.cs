@@ -15,6 +15,12 @@ public sealed class GitHubApiClient(HttpClient httpClient, ApiTelemetry telemetr
         var readme=await GetJsonAsync<GitHubReadme>($"/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repository)}/readme", "GET /repos/{owner}/{repo}/readme", cancellationToken);
         if(readme?.Content is null)return readme; try{var normalized=readme.Content.Replace("\n","").Replace("\r","");return readme with{DecodedContent=Encoding.UTF8.GetString(Convert.FromBase64String(normalized))};}catch(FormatException){return readme;}
     }
+    public async Task<GitHubFileContent?> GetFileContentAsync(string owner,string repository,string path,string reference,CancellationToken cancellationToken=default)
+    {
+        var encodedPath=string.Join('/',path.Split('/',StringSplitOptions.RemoveEmptyEntries).Select(Uri.EscapeDataString));
+        var file=await GetJsonAsync<GitHubFileContent>($"/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repository)}/contents/{encodedPath}?ref={Uri.EscapeDataString(reference)}","GET /repos/{owner}/{repo}/contents/{path}",cancellationToken);
+        if(file?.Content is null)return file; try{var normalized=file.Content.Replace("\n","").Replace("\r","");return file with{DecodedContent=Encoding.UTF8.GetString(Convert.FromBase64String(normalized))};}catch(FormatException){return file;}
+    }
     public async Task<IReadOnlyList<GitHubCommit>> GetCommitsAsync(string owner,string repository,int perPage=5,CancellationToken cancellationToken=default)=>await GetJsonAsync<IReadOnlyList<GitHubCommit>>($"/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repository)}/commits?per_page={Math.Clamp(perPage,1,20)}","GET /repos/{owner}/{repo}/commits",cancellationToken)??[];
     public Task<GitHubCommitDetail?> GetCommitAsync(string owner,string repository,string sha,CancellationToken cancellationToken=default)=>GetJsonAsync<GitHubCommitDetail>($"/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repository)}/commits/{Uri.EscapeDataString(sha)}","GET /repos/{owner}/{repo}/commits/{sha}",cancellationToken);
     public async Task<IReadOnlyList<GitHubPullRequest>> GetPullRequestsAsync(string owner,string repository,int perPage=5,CancellationToken cancellationToken=default)=>await GetJsonAsync<IReadOnlyList<GitHubPullRequest>>($"/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repository)}/pulls?state=all&sort=updated&direction=desc&per_page={Math.Clamp(perPage,1,20)}","GET /repos/{owner}/{repo}/pulls",cancellationToken)??[];
@@ -38,6 +44,7 @@ public sealed class GitHubApiClient(HttpClient httpClient, ApiTelemetry telemetr
 public sealed record GitHubProfile(string Login,string? Name,string? AvatarUrl,string? HtmlUrl,string? Bio,int PublicRepos,int Followers,int Following);
 public sealed record GitHubRepository(string Name,string? Description,string? HtmlUrl,string? Language,int StargazersCount,int ForksCount,bool Fork,DateTimeOffset? UpdatedAt);
 public sealed record GitHubReadme(string? Name,string? Path,string? HtmlUrl,string? Content,string? Encoding){[JsonIgnore]public string? DecodedContent{get;init;}}
+public sealed record GitHubFileContent(string? Name,string? Path,string? HtmlUrl,string? Content,string? Encoding){[JsonIgnore]public string? DecodedContent{get;init;}}
 public sealed record GitHubCommit(string Sha,GitHubCommitDetails? Commit,GitHubUser? Author,string? HtmlUrl);
 public sealed record GitHubCommitDetails(GitHubCommitAuthor? Author,string? Message);
 public sealed record GitHubCommitAuthor(string? Name,DateTimeOffset? Date);
