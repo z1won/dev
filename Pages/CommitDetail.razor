@@ -64,27 +64,18 @@ else if (commit is not null)
 
         <div class="code-diff-pane">
             <div class="repository-panel code-context-panel">
-                <div class="repository-panel-head">
-                    <span>COMMIT MESSAGE</span>
-                    <small>@FormatDate(commit.Commit?.Author?.Date)</small>
-                </div>
+                <div class="repository-panel-head"><span>COMMIT MESSAGE</span><small>@FormatDate(commit.Commit?.Author?.Date)</small></div>
                 <pre class="commit-message">@(commit.Commit?.Message ?? "No commit message.")</pre>
             </div>
 
             <div class="repository-panel code-diff-panel">
                 <div class="code-diff-head">
-                    <div>
-                        <span class="eyebrow">FILE / @activeView.ToUpperInvariant()</span>
-                        <strong>@SelectedFilename()</strong>
-                    </div>
+                    <div><span class="eyebrow">FILE / @activeView.ToUpperInvariant()</span><strong>@SelectedFilename()</strong></div>
                     <div class="code-view-tabs">
-                        <button type="button" class="@(activeView == "diff" ? "active" : "")" @onclick="() => SetView("diff")">DIFF</button>
-                        <button type="button" class="@(activeView == "source" ? "active" : "")" @onclick="() => SetView("source")">SOURCE</button>
+                        <button type="button" class="@(activeView == "diff" ? "active" : "")" @onclick="SetDiffView">DIFF</button>
+                        <button type="button" class="@(activeView == "source" ? "active" : "")" @onclick="SetSourceView">SOURCE</button>
                     </div>
-                    <div class="code-diff-meta">
-                        <span>+@(SelectedFile()?.Additions ?? 0)</span>
-                        <span>-@(SelectedFile()?.Deletions ?? 0)</span>
-                    </div>
+                    <div class="code-diff-meta"><span>+@(SelectedFile()?.Additions ?? 0)</span><span>-@(SelectedFile()?.Deletions ?? 0)</span></div>
                 </div>
                 @if (activeView == "diff")
                 {
@@ -142,13 +133,7 @@ else if (commit is not null)
 
     private async Task LoadAsync()
     {
-        loading = true;
-        error = null;
-        source = null;
-        sourceError = null;
-        selectedFileIndex = 0;
-        activeView = "diff";
-
+        loading = true; error = null; source = null; sourceError = null; selectedFileIndex = 0; activeView = "diff";
         try
         {
             commit = await GitHub.GetCommitAsync("z1won", RepositoryName, Sha);
@@ -158,7 +143,7 @@ else if (commit is not null)
         finally { loading = false; }
     }
 
-    private async Task SelectFile(int index)
+    private void SelectFile(int index)
     {
         selectedFileIndex = index;
         source = null;
@@ -166,13 +151,13 @@ else if (commit is not null)
         activeView = "diff";
     }
 
-    private async Task SetView(string view)
-    {
-        activeView = view;
-        if (view != "source" || source is not null || SelectedFile() is null) return;
+    private void SetDiffView() => activeView = "diff";
 
-        sourceLoading = true;
-        sourceError = null;
+    private async Task SetSourceView()
+    {
+        activeView = "source";
+        if (source is not null || SelectedFile() is null) return;
+        sourceLoading = true; sourceError = null;
         try
         {
             var path = SelectedFile()!.Filename;
@@ -188,12 +173,6 @@ else if (commit is not null)
     private string SelectedFilename() => SelectedFile()?.Filename ?? "No file selected";
     private string ShortSha() => string.IsNullOrWhiteSpace(Sha) ? "unknown" : Sha[..Math.Min(10, Sha.Length)];
     private string RepositoryUrl() => $"{NavManager.BaseUri}repositories/{Uri.EscapeDataString(RepositoryName)}";
-
-    private static string ShortMessage(string? message)
-    {
-        var firstLine = message?.Split('\n', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()?.Trim();
-        return string.IsNullOrWhiteSpace(firstLine) ? "Untitled commit" : firstLine;
-    }
-
+    private static string ShortMessage(string? message){var firstLine=message?.Split('\n',StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()?.Trim();return string.IsNullOrWhiteSpace(firstLine)?"Untitled commit":firstLine;}
     private static string FormatDate(DateTimeOffset? date) => date is null ? "—" : date.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
 }
