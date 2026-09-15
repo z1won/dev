@@ -38,6 +38,15 @@ else if (pullRequest is not null)
         <div><span>HEAD</span><strong>@ShortSha(pullRequest.HeadSha)</strong></div>
     </section>
 
+    <section class="pr-action-bar repository-panel">
+        <div class="pr-action-copy"><span>REVIEW ACTION LAYER</span><small>Write operations open in GitHub; this public WASM client never stores credentials.</small></div>
+        <div class="pr-actions">
+            <a href="@pullRequest.HtmlUrl#issuecomment-new" target="_blank" rel="noopener">COMMENT</a>
+            <a href="@pullRequest.HtmlUrl#pullrequest-review" target="_blank" rel="noopener">REVIEW</a>
+            <a href="@pullRequest.HtmlUrl#files_bucket" target="_blank" rel="noopener">FILES</a>
+        </div>
+    </section>
+
     <section class="pr-intelligence-grid">
         <aside class="repository-panel pr-files-panel">
             <div class="repository-panel-head"><span>CHANGED FILES</span><small>@files.Count</small></div>
@@ -77,7 +86,7 @@ else if (pullRequest is not null)
                 <div><span>ADDITIONS</span><strong>+@additions</strong></div>
                 <div><span>DELETIONS</span><strong>-@deletions</strong></div>
                 <div><span>REVIEWS</span><strong>@reviews.Count</strong></div>
-                <div><span>UNRESOLVED</span><strong>@threads.Count(x => !x.IsResolved)</strong></div>
+                <div><span>UNRESOLVED</span><strong>@unresolvedThreads</strong></div>
             </section>
 
             <section class="repository-panel">
@@ -87,7 +96,10 @@ else if (pullRequest is not null)
                     <div class="pr-thread @(thread.IsResolved ? "resolved" : "")">
                         <div class="pr-thread-head"><span>INLINE THREAD</span><strong>@(thread.IsResolved ? "RESOLVED" : "UNRESOLVED")</strong></div>
                         <p>@thread.Body</p>
-                        @if (!string.IsNullOrWhiteSpace(thread.Path)) { <small>@thread.Path@(thread.Line is null ? "" : $":{thread.Line}")</small> }
+                        @if (!string.IsNullOrWhiteSpace(thread.Path))
+                        {
+                            <div class="pr-thread-location"><small>@thread.Path@(thread.Line is null ? "" : $":{thread.Line}")</small><a href="@GitHubFileUrl(thread.Path, thread.Line)" target="_blank" rel="noopener">OPEN FILE ↗</a></div>
+                        }
                     </div>
                 }
                 @if (threads.Count == 0) { <div class="repository-empty">No inline review threads.</div> }
@@ -106,8 +118,25 @@ else if (pullRequest is not null)
             </section>
 
             <section class="repository-panel">
-                <div class="repository-panel-head"><span>CI INTELLIGENCE</span><small>@ciLabel</small></div>
+                <div class="repository-panel-head"><span>CI INTELLIGENCE</span><small>@ciLabel · @checkRuns.Count checks</small></div>
                 <div class="ci-summary"><strong>@ciLabel</strong><span>@ciDetail</span></div>
+                @if (checkRuns.Count > 0)
+                {
+                    <div class="ci-checks">
+                        @foreach (var check in checkRuns)
+                        {
+                            <a class="ci-check" href="@check.HtmlUrl" target="_blank" rel="noopener">
+                                <span class="ci-check-state">@CheckLabel(check)</span>
+                                <strong>@(check.Name ?? "Unnamed check")</strong>
+                                <small>@(check.CompletedAt is null ? check.Status ?? "running" : $"{check.Status} · {check.Conclusion}")</small>
+                            </a>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="repository-empty">No check runs reported for this commit.</div>
+                }
             </section>
         </div>
     </section>
@@ -121,6 +150,7 @@ else if (pullRequest is not null)
     private IReadOnlyList<GitHubPullRequestFile> files = [];
     private IReadOnlyList<PullRequestReviewInfo> reviews = [];
     private IReadOnlyList<PullRequestThreadInfo> threads = [];
+    private IReadOnlyList<GitHubCheckRun> checkRuns = [];
     private string? prPatch;
     private string? selectedFile;
     private string? filePatch;
@@ -136,7 +166,7 @@ else if (pullRequest is not null)
 
     private async Task LoadAsync()
     {
-        loading = true; error = null; pullRequest = null; files = []; reviews = []; threads = []; prPatch = null; selectedFile = null; filePatch = null; additions = deletions = 0;
+        loading = true; error = null; pullRequest = null; files = []; reviews = []; threads = []; checkRuns = []; prPatch = null; selectedFile = null; filePatch = null; additions = deletions = 0;
         try
         {
             var prTask = GitHub.GetPullRequestIntelligenceAsync("z1won", RepositoryName, PullRequestNumber);
@@ -148,8 +178,10 @@ else if (pullRequest is not null)
             pullRequest = await prTask; files = await filesTask; reviews = await reviewsTask; threads = await threadsTask; prPatch = await diffTask;
             if (pullRequest is null) { error = "Pull request was not found."; return; }
             additions = pullRequest.Additions; deletions = pullRequest.Deletions;
-            var status = await GitHub.GetCommitStatusAsync("z1won", RepositoryName, pullRequest.HeadSha);
-            ciLabel = status.Label; ciDetail = status.Detail;
+            var statusTask = GitHub.GetCommitStatusAsync("z1won", RepositoryName, pullRequest.HeadSha);
+            var checksTask = GitHub.GetCheckRunsAsync("z1won", RepositoryName, pullRequest.HeadSha);
+            await Task.WhenAll(statusTask, checksTask);
+            var status = await statusTask; ciLabel = status.Label; ciDetail = status.Detail; checkRuns = await checksTask;
         }
         catch (Exception ex) { error = ex.Message; }
         finally { loading = false; }
@@ -164,6 +196,9 @@ else if (pullRequest is not null)
         finally { filePatchLoading = false; }
     }
 
+    private int unresolvedThreads => threads.Count(x => !x.IsResolved);
     private string StatusLabel => pullRequest?.Draft == true ? "DRAFT" : (pullRequest?.State ?? "UNKNOWN").ToUpperInvariant();
     private static string ShortSha(string sha) => sha[..Math.Min(8, sha.Length)];
+    private static string CheckLabel(GitHubCheckRun check) => check.Conclusion?.ToUpperInvariant() switch { "SUCCESS" => "PASS", "FAILURE" or "CANCELLED" or "TIMED_OUT" => "FAIL", _ => (check.Status ?? "PENDING").ToUpperInvariant() };
+    private string GitHubFileUrl(string path, int? line) => $"https://github.com/z1won/{Uri.EscapeDataString(RepositoryName)}/blob/{Uri.EscapeDataString(pullRequest?.HeadSha ?? "master")}/{string.Join('/', path.Split('/').Select(Uri.EscapeDataString))}{(line is null ? "" : $"#L{line}")}";
 }
