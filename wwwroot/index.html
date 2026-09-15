@@ -16,7 +16,6 @@
     <link href="css/pull-request.css" rel="stylesheet" />
     <link href="css/repository-commit.css" rel="stylesheet" />
     <link href="css/pr-intelligence.css" rel="stylesheet" />
-    <link href="dev.styles.css" rel="stylesheet" />
 </head>
 <body>
     <div id="app">
@@ -30,6 +29,17 @@
         <a href="." class="reload">Reload</a>
         <button class="dismiss" aria-label="Dismiss">🗙</button>
     </div>
-    <script src="_framework/blazor.webassembly.js"></script>
+    <script>
+        window.__devBlazorStarted = false;
+        window.setTimeout(function () {
+            if (!window.__devBlazorStarted) {
+                var app = document.getElementById('app');
+                if (app && app.querySelector('.loading-screen')) {
+                    app.querySelector('.loading-screen').insertAdjacentHTML('beforeend', '<small style="display:block;margin-top:12px;opacity:.7">WASM startup is taking longer than expected. Reload the page once.</small>');
+                }
+            }
+        }, 12000);
+    </script>
+    <script src="_framework/blazor.webassembly.js" onload="window.__devBlazorStarted = true"></script>
 </body>
 </html>
